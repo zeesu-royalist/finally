@@ -1,0 +1,91 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Box, Sparkles, X } from 'lucide-react';
+import Model3DViewer from '../ui/Model3DViewer';
+
+export default function Hero() {
+  const [isInteractive, setIsInteractive] = useState(false);
+
+  // Allow ESC key to exit interactive 3D mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isInteractive) {
+        setIsInteractive(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isInteractive]);
+
+  return (
+    <section className="relative w-full h-screen min-h-[640px] overflow-hidden bg-white flex items-center justify-center selection:bg-zinc-900 selection:text-white">
+      {/* 3D Model Canvas (Centered in the background, auto-rotating) */}
+      <div className="absolute inset-0 w-full h-full">
+        <Model3DViewer
+          modelPath="/3d modal/baker_and_the_bridge.glb"
+          className="w-full h-full"
+          isInteractive={isInteractive}
+          onExitInteractive={() => setIsInteractive(false)}
+          onEnterInteractive={() => setIsInteractive(true)}
+        />
+      </div>
+
+      {/* Soft Luminous Ambient Stage:
+          Provides a gentle, seamless radial glow directly behind the text
+          so the 3D model rotates with full depth while the typography is 100% crystal-clear, razor-sharp, and legible */}
+      <div
+        className={`absolute inset-0 pointer-events-none transition-opacity duration-500 ease-out bg-[radial-gradient(ellipse_65%_55%_at_50%_48%,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.45)_55%,transparent_85%)] ${isInteractive ? 'opacity-0' : 'opacity-100'
+          }`}
+      />
+
+      {/* Heading Text & Buttons - Centered directly over the 3D model */}
+      <div
+        className={`relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 flex flex-col items-center text-center transition-all duration-500 ease-out pointer-events-none ${isInteractive ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
+          }`}
+      >
+        {/* Core Content Block */}
+        <div className="flex flex-col items-center">
+          {/* Main Headline - Restored to exact original font-medium typography */}
+          <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-[5.5rem] font-medium tracking-[-0.04em] text-zinc-950 leading-[1.06] max-w-4xl select-none drop-shadow-[0_2px_16px_rgba(255,255,255,0.85)]">
+            Engineered for Creativity
+          </h1>
+
+          {/* Subtitle - Restored to exact original font-normal typography */}
+          <p className="mt-4 sm:mt-5 text-base sm:text-xl font-normal text-zinc-600 leading-relaxed max-w-xl select-none drop-shadow-[0_1px_8px_rgba(255,255,255,0.8)]">
+            Butter, the first video editor you can build on.
+          </p>
+        </div>
+
+        {/* Centered Buttons */}
+        <div className="mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-3 pointer-events-auto">
+          {/* Get Started Button */}
+          <Link
+            href="/"
+            className="h-11 sm:h-12 px-7 rounded-full bg-zinc-950 hover:bg-black text-white text-sm font-medium transition-all shadow-lg shadow-zinc-900/15 hover:shadow-xl hover:scale-[1.02] active:scale-95 flex items-center justify-center cursor-pointer"
+          >
+            Get Started
+          </Link>
+
+          {/* See 3D Model Button - triggers interactive mode */}
+          <button
+            type="button"
+            onClick={() => setIsInteractive(true)}
+            className="h-11 sm:h-12 px-6 rounded-full bg-white/95 hover:bg-white text-zinc-900 border border-zinc-300 hover:border-zinc-400 text-sm font-medium transition-all shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 flex items-center gap-2 group backdrop-blur-md cursor-pointer"
+          >
+            <Box className="w-4 h-4 text-zinc-700 group-hover:rotate-12 transition-transform" />
+            <span>See 3D Model</span>
+          </button>
+        </div>
+
+        {/* Helper hint */}
+        <div className="mt-3.5 flex items-center gap-1.5 text-xs text-zinc-500 select-none font-medium">
+          <span>Click</span>
+          <span className="font-semibold text-zinc-800 underline underline-offset-2">See 3D Model</span>
+          <span>to interact & rotate in 360°</span>
+        </div>
+      </div>
+    </section>
+  );
+}
