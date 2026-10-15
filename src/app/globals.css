@@ -1,26 +1,172 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Tier-1 Enterprise Studio Theme (Apple Pro / Linear Platinum Monochrome) */
+  --bg-primary: #121214;
+  --bg-secondary: #18181b;
+  --bg-panel: #1e1e24;
+  --bg-panel-hover: #26262e;
+  --bg-panel-secondary: #23232a;
+  --bg-input: #141416;
+  --border-color: #2e2e36;
+  --border-subtle: #24242b;
+  --border-bright: #3d3d47;
+  --border-focus: #FFFFFF;
+  --accent-color: #FFFFFF;
+  --accent-hover: #E4E4E8;
+  --accent-glow: #FFFFFF;
+  --accent-gradient: #FFFFFF;
+  --text-primary: #F4F4F6;
+  --text-secondary: #9E9EA8;
+  --text-muted: #6A6A74;
+  --timeline-track: #151518;
+  --timeline-track-alt: #19191d;
+  --timeline-clip-video: #2c323b;
+  --timeline-clip-audio: #22332a;
+  --timeline-clip-text: #342c3d;
+  --timeline-clip-image: #3b322a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme='midnight'] {
+  --bg-primary: #101012;
+  --bg-secondary: #151518;
+  --bg-panel: #1a1a20;
+  --bg-panel-hover: #22222a;
+  --bg-panel-secondary: #22222a;
+  --bg-input: #0e0e10;
+  --border-color: #272730;
+  --border-subtle: #1f1f26;
+  --border-bright: #343440;
+  --border-focus: #FFFFFF;
+  --accent-color: #FFFFFF;
+  --accent-hover: #E4E4E8;
+  --accent-glow: #FFFFFF;
+  --accent-gradient: #FFFFFF;
+  --text-primary: #F4F4F6;
+  --text-secondary: #9E9EA8;
+  --text-muted: #6A6A74;
+  --timeline-track: #121215;
+  --timeline-track-alt: #16161a;
+  --timeline-clip-video: #2c323b;
+  --timeline-clip-audio: #22332a;
+  --timeline-clip-text: #342c3d;
+  --timeline-clip-image: #3b322a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme='slate'] {
+  --bg-primary: #131416;
+  --bg-secondary: #18191c;
+  --bg-panel: #1d1e22;
+  --bg-panel-hover: #24252a;
+  --bg-panel-secondary: #24252a;
+  --bg-input: #101113;
+  --border-color: #292a30;
+  --border-subtle: #212227;
+  --border-bright: #363840;
+  --border-focus: #FFFFFF;
+  --accent-color: #FFFFFF;
+  --accent-hover: #E4E4E8;
+  --accent-glow: #FFFFFF;
+  --accent-gradient: #FFFFFF;
+  --text-primary: #F4F4F6;
+  --text-secondary: #9E9EA8;
+  --text-muted: #6A6A74;
+  --timeline-track: #131416;
+  --timeline-track-alt: #17181c;
+  --timeline-clip-video: #2c323b;
+  --timeline-clip-audio: #22332a;
+  --timeline-clip-text: #342c3d;
+  --timeline-clip-image: #3b322a;
+}
+
+[data-theme='crimson'] {
+  --bg-primary: #141212;
+  --bg-secondary: #1a1717;
+  --bg-panel: #201d1d;
+  --bg-panel-hover: #272323;
+  --bg-panel-secondary: #272323;
+  --bg-input: #110f0f;
+  --border-color: #2c2727;
+  --border-subtle: #231f1f;
+  --border-bright: #3b3535;
+  --border-focus: #FFFFFF;
+  --accent-color: #FFFFFF;
+  --accent-hover: #E4E4E8;
+  --accent-glow: #FFFFFF;
+  --accent-gradient: #FFFFFF;
+  --text-primary: #F4F4F6;
+  --text-secondary: #9E9EA8;
+  --text-muted: #6A6A74;
+  --timeline-track: #141212;
+  --timeline-track-alt: #181616;
+  --timeline-clip-video: #2c323b;
+  --timeline-clip-audio: #22332a;
+  --timeline-clip-text: #342c3d;
+  --timeline-clip-image: #3b322a;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  user-select: none;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Desktop Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-bright);
+}
+
+/* Flat desktop panel */
+.glass-panel {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+}
+
+/* Range input styling - Monochrome Desktop NLE */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #161616;
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  height: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  background: #8E8E8E;
+  border: 1px solid #161616;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #E6E6E6;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  background: var(--accent-color);
 }
