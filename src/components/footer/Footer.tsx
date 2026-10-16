@@ -23,7 +23,7 @@ export default function Footer() {
         <div className="w-full h-[2px] bg-[#6e6e76]" />
 
         {/* Top Header & Navigation Columns Section */}
-        <div className="max-w-[1440px] w-full mx-auto px-6 sm:px-12 lg:px-16 pt-7 sm:pt-9 pb-6 sm:pb-7">
+        <div className="max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-12 pt-7 sm:pt-9 pb-6 sm:pb-7">
           {/* Centered Top Line: Natural, human studio statement */}
           <div className="w-full text-center mb-6 sm:mb-8">
             <p className="text-sm sm:text-[15px] !text-black font-normal tracking-wide select-none">
@@ -199,7 +199,7 @@ export default function Footer() {
       </div>
 
       {/* 3. Bottom Bar: Location, Copyright, Back to Top */}
-      <div className="shrink-0 max-w-[1440px] w-full mx-auto px-6 sm:px-12 lg:px-16 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-zinc-500 font-sans border-t border-zinc-900/80">
+      <div className="shrink-0 max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-zinc-500 font-sans border-t border-zinc-900/80">
         <div>Cambridge, UK</div>
 
         <div>©2026 Aperios Design. All Rights Reserved.</div>

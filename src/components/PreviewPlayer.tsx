@@ -100,8 +100,8 @@ export default function PreviewPlayer() {
       if (vid.playbackRate !== speed) {
         vid.playbackRate = speed;
       }
-      if ((vid as any).preservesPitch !== undefined) {
-        (vid as any).preservesPitch = true;
+      if ('preservesPitch' in vid) {
+        (vid as HTMLVideoElement & { preservesPitch: boolean }).preservesPitch = true;
       }
     }
 
@@ -155,8 +155,8 @@ export default function PreviewPlayer() {
       if (el.playbackRate !== audioSpeed) {
         el.playbackRate = audioSpeed;
       }
-      if ((el as any).preservesPitch !== undefined) {
-        (el as any).preservesPitch = true;
+      if ('preservesPitch' in el) {
+        (el as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
       }
 
       const targetTime = audioClip.offsetStart + (currentTime - audioClip.startTime) * audioSpeed;
@@ -211,6 +211,20 @@ export default function PreviewPlayer() {
     };
   };
 
+  const handleTextTouchStart = (e: React.TouchEvent, txt: TextClip) => {
+    e.stopPropagation();
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    setSelectedItem({ type: 'text', id: txt.id });
+    setIsDraggingTextId(txt.id);
+    dragStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initTextX: txt.x,
+      initTextY: txt.y,
+    };
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingTextId || !dragStartRef.current || !viewportRef.current) return;
@@ -224,19 +238,36 @@ export default function PreviewPlayer() {
       updateTextClip(isDraggingTextId, { x: Math.round(newX), y: Math.round(newY) });
     };
 
-    const handleMouseUp = () => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingTextId || !dragStartRef.current || !viewportRef.current || e.touches.length === 0) return;
+      const touch = e.touches[0];
+      const rect = viewportRef.current.getBoundingClientRect();
+      const deltaX = ((touch.clientX - dragStartRef.current.startX) / rect.width) * 100;
+      const deltaY = ((touch.clientY - dragStartRef.current.startY) / rect.height) * 100;
+
+      const newX = Math.max(5, Math.min(95, dragStartRef.current.initTextX + deltaX));
+      const newY = Math.max(5, Math.min(95, dragStartRef.current.initTextY + deltaY));
+
+      updateTextClip(isDraggingTextId, { x: Math.round(newX), y: Math.round(newY) });
+    };
+
+    const handleDragEnd = () => {
       setIsDraggingTextId(null);
       dragStartRef.current = null;
     };
 
     if (isDraggingTextId) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleDragEnd);
     }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleDragEnd);
     };
   }, [isDraggingTextId, updateTextClip]);
 
@@ -273,6 +304,21 @@ export default function PreviewPlayer() {
     };
   };
 
+  const handleImageTouchStart = (e: React.TouchEvent, img: ImageClip) => {
+    e.stopPropagation();
+    if (e.touches.length === 0) return;
+    saveSnapshot();
+    const touch = e.touches[0];
+    setSelectedItem({ type: 'image', id: img.id });
+    setIsDraggingImageId(img.id);
+    dragImageStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initImgX: img.x,
+      initImgY: img.y,
+    };
+  };
+
   const handleImageResizeMouseDown = (
     e: React.MouseEvent,
     img: ImageClip,
@@ -294,6 +340,35 @@ export default function PreviewPlayer() {
       handle,
       startX: e.clientX,
       startY: e.clientY,
+      centerX,
+      centerY,
+      initRadius,
+      initWidth: img.width || 35,
+    });
+  };
+
+  const handleImageResizeTouchStart = (
+    e: React.TouchEvent,
+    img: ImageClip,
+    handle: 'tl' | 'tr' | 'bl' | 'br'
+  ) => {
+    e.stopPropagation();
+    if (e.touches.length === 0) return;
+    saveSnapshot();
+    const touch = e.touches[0];
+    setSelectedItem({ type: 'image', id: img.id });
+
+    if (!viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const centerX = rect.left + (img.x / 100) * rect.width;
+    const centerY = rect.top + (img.y / 100) * rect.height;
+    const initRadius = Math.max(15, Math.hypot(touch.clientX - centerX, touch.clientY - centerY));
+
+    setResizingImage({
+      id: img.id,
+      handle,
+      startX: touch.clientX,
+      startY: touch.clientY,
       centerX,
       centerY,
       initRadius,
@@ -326,7 +401,33 @@ export default function PreviewPlayer() {
       }
     };
 
-    const handleMouseUp = () => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      if (resizingImage && viewportRef.current) {
+        const currentRadius = Math.hypot(
+          touch.clientX - resizingImage.centerX,
+          touch.clientY - resizingImage.centerY
+        );
+        const ratio = currentRadius / resizingImage.initRadius;
+        const newWidth = Math.min(
+          150,
+          Math.max(5, Math.round(resizingImage.initWidth * ratio))
+        );
+        updateImageClip(resizingImage.id, { width: newWidth });
+      } else if (isDraggingImageId && dragImageStartRef.current && viewportRef.current) {
+        const rect = viewportRef.current.getBoundingClientRect();
+        const deltaX = ((touch.clientX - dragImageStartRef.current.startX) / rect.width) * 100;
+        const deltaY = ((touch.clientY - dragImageStartRef.current.startY) / rect.height) * 100;
+
+        const newX = Math.max(0, Math.min(100, dragImageStartRef.current.initImgX + deltaX));
+        const newY = Math.max(0, Math.min(100, dragImageStartRef.current.initImgY + deltaY));
+
+        updateImageClip(isDraggingImageId, { x: Math.round(newX), y: Math.round(newY) });
+      }
+    };
+
+    const handleDragEnd = () => {
       setIsDraggingImageId(null);
       dragImageStartRef.current = null;
       setResizingImage(null);
@@ -334,12 +435,16 @@ export default function PreviewPlayer() {
 
     if (isDraggingImageId || resizingImage) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleDragEnd);
     }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleDragEnd);
     };
   }, [isDraggingImageId, resizingImage, updateImageClip]);
 
@@ -364,7 +469,7 @@ export default function PreviewPlayer() {
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-[#181818] flex flex-col items-center justify-center p-3 relative overflow-hidden select-none"
+      className="flex-1 bg-[#181818] flex flex-col items-center justify-center p-1.5 sm:p-3 relative overflow-hidden select-none min-h-0"
       onClick={(e) => {
         if (e.target === containerRef.current) {
           setSelectedItem(null);
@@ -419,6 +524,7 @@ export default function PreviewPlayer() {
             <div
               key={img.id}
               onMouseDown={(e) => handleImageMouseDown(e, img)}
+              onTouchStart={(e) => handleImageTouchStart(e, img)}
               style={{
                 left: `${img.x}%`,
                 top: `${img.y}%`,
@@ -453,22 +559,26 @@ export default function PreviewPlayer() {
                   {/* 4 Corner Resize Handles - Desktop NLE square handles */}
                   <div
                     onMouseDown={(e) => handleImageResizeMouseDown(e, img, 'tl')}
-                    className="absolute -top-1.5 -left-1.5 w-2.5 h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nwse-resize hover:scale-125 active:scale-110 transition-transform z-40"
+                    onTouchStart={(e) => handleImageResizeTouchStart(e, img, 'tl')}
+                    className="absolute -top-2 -left-2 sm:-top-1.5 sm:-left-1.5 w-3.5 h-3.5 sm:w-2.5 sm:h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nwse-resize hover:scale-125 active:scale-110 transition-transform z-40"
                     title="Drag corner to resize"
                   />
                   <div
                     onMouseDown={(e) => handleImageResizeMouseDown(e, img, 'tr')}
-                    className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nesw-resize hover:scale-125 active:scale-110 transition-transform z-40"
+                    onTouchStart={(e) => handleImageResizeTouchStart(e, img, 'tr')}
+                    className="absolute -top-2 -right-2 sm:-top-1.5 sm:-right-1.5 w-3.5 h-3.5 sm:w-2.5 sm:h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nesw-resize hover:scale-125 active:scale-110 transition-transform z-40"
                     title="Drag corner to resize"
                   />
                   <div
                     onMouseDown={(e) => handleImageResizeMouseDown(e, img, 'bl')}
-                    className="absolute -bottom-1.5 -left-1.5 w-2.5 h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nesw-resize hover:scale-125 active:scale-110 transition-transform z-40"
+                    onTouchStart={(e) => handleImageResizeTouchStart(e, img, 'bl')}
+                    className="absolute -bottom-2 -left-2 sm:-bottom-1.5 sm:-left-1.5 w-3.5 h-3.5 sm:w-2.5 sm:h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nesw-resize hover:scale-125 active:scale-110 transition-transform z-40"
                     title="Drag corner to resize"
                   />
                   <div
                     onMouseDown={(e) => handleImageResizeMouseDown(e, img, 'br')}
-                    className="absolute -bottom-1.5 -right-1.5 w-2.5 h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nwse-resize hover:scale-125 active:scale-110 transition-transform z-40"
+                    onTouchStart={(e) => handleImageResizeTouchStart(e, img, 'br')}
+                    className="absolute -bottom-2 -right-2 sm:-bottom-1.5 sm:-right-1.5 w-3.5 h-3.5 sm:w-2.5 sm:h-2.5 bg-white border border-[#181818] rounded-[1px] cursor-nwse-resize hover:scale-125 active:scale-110 transition-transform z-40"
                     title="Drag corner to resize"
                   />
                 </>
@@ -484,6 +594,7 @@ export default function PreviewPlayer() {
             <div
               key={txt.id}
               onMouseDown={(e) => handleTextMouseDown(e, txt)}
+              onTouchStart={(e) => handleTextTouchStart(e, txt)}
               style={{
                 left: `${txt.x}%`,
                 top: `${txt.y}%`,
@@ -517,10 +628,17 @@ export default function PreviewPlayer() {
         })}
       </div>
 
-      {/* Control Bar - Desktop NLE Style */}
-      <div className="h-9 w-full max-w-lg mt-2 px-2 rounded-[2px] bg-[#222222] border border-[#333333] flex items-center justify-between gap-1 z-20 shrink-0">
-        {/* Playback Controls */}
-        <div className="flex items-center gap-0.5 shrink-0">
+      {/* Control Bar - Responsive Studio Style */}
+      <div className="h-9 w-full max-w-lg mt-1.5 sm:mt-2 px-1.5 sm:px-2 rounded-[2px] bg-[#222222] border border-[#333333] flex items-center justify-between gap-1 z-20 shrink-0 relative">
+        {/* Timecode Display - Left */}
+        <div className="font-mono text-[9px] sm:text-[11px] font-normal tracking-wider text-[#A0A0A0] px-1.5 sm:px-2 py-0.5 rounded-[2px] bg-[#141414] border border-[#2d2d2d] flex items-center shrink-0 whitespace-nowrap z-10">
+          <span className="text-white font-medium">{formatTimecode(currentTime)}</span>
+          <span className="text-[#555555] mx-0.5 sm:mx-1">/</span>
+          <span>{formatTimecode(totalDuration)}</span>
+        </div>
+
+        {/* Playback Controls (Reset to start, SkipBack, Play, SkipForward) - Center */}
+        <div className="flex items-center gap-0.5 shrink-0 absolute left-1/2 -translate-x-1/2 z-10">
           <button
             onClick={() => seekTo(0)}
             title="Reset to start (Home)"
@@ -554,15 +672,8 @@ export default function PreviewPlayer() {
           </button>
         </div>
 
-        {/* Timecode Display - Clean Studio Precision White Readout */}
-        <div className="font-mono text-[11px] font-normal tracking-wider text-[#A0A0A0] px-2 py-0.5 rounded-[2px] bg-[#141414] border border-[#2d2d2d] flex items-center shrink-0 whitespace-nowrap">
-          <span className="text-white font-medium">{formatTimecode(currentTime)}</span>
-          <span className="text-[#555555] mx-1">/</span>
-          <span>{formatTimecode(totalDuration)}</span>
-        </div>
-
-        {/* Volume & Fullscreen */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Volume & Fullscreen - Right */}
+        <div className="flex items-center gap-1.5 shrink-0 z-10 ml-auto">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsMuted(!isMuted)}

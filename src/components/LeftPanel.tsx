@@ -20,13 +20,14 @@ import {
   CheckCheck,
   Zap,
   Loader2,
+  X,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
 import { generateSyntheticVideo, generateSyntheticAudio, generateSampleImage } from '../utils/sampleMedia';
 import { FILTER_PRESETS, DEFAULT_ADJUSTMENTS } from '../utils/filterUtils';
 import { VideoClip } from '../types/editor';
 
-type ActiveTab = 'media' | 'images' | 'text' | 'audio' | 'filters';
+export type ActiveTab = 'media' | 'images' | 'text' | 'audio' | 'filters';
 
 const TABS: Array<{ id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }>; title: string }> = [
   { id: 'media', label: 'Media', icon: Film, title: 'Video & Media Bin' },
@@ -105,8 +106,25 @@ const SAMPLE_IMAGE_CARDS: Array<{
     { id: 'landscape', name: 'Still Photo Graphic', desc: 'Static photo image overlay', icon: ImageIcon },
   ];
 
-export default function LeftPanel() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('media');
+interface LeftPanelProps {
+  isMobileDrawerOpen?: boolean;
+  onMobileClose?: () => void;
+  activeTabOverride?: ActiveTab;
+  onTabChange?: (tab: ActiveTab) => void;
+}
+
+export default function LeftPanel({
+  isMobileDrawerOpen = false,
+  onMobileClose,
+  activeTabOverride,
+  onTabChange,
+}: LeftPanelProps = {}) {
+  const [internalActiveTab, setInternalActiveTab] = useState<ActiveTab>('media');
+  const activeTab = activeTabOverride ?? internalActiveTab;
+  const setActiveTab = (tab: ActiveTab) => {
+    setInternalActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
@@ -178,9 +196,34 @@ export default function LeftPanel() {
     videoClips[0];
 
   return (
-    <div className="w-80 border-r border-[#303030] bg-[#232323] flex flex-col select-none shrink-0 z-20">
+    <div
+      className={
+        isMobileDrawerOpen
+          ? 'fixed inset-x-0 bottom-0 top-12 z-40 bg-[#222226] border-t border-[#383842] rounded-t-xl shadow-2xl flex flex-col select-none overflow-hidden pb-safe md:static md:inset-auto md:w-80 md:rounded-none md:border-t-0 md:border-r md:border-[#303030] md:bg-[#232323] md:h-auto md:pb-0'
+          : 'hidden md:flex w-80 border-r border-[#303030] bg-[#232323] flex-col select-none shrink-0 z-20'
+      }
+    >
+      {/* Mobile Drawer Top Drag Handle and Header */}
+      {isMobileDrawerOpen && (
+        <div className="flex md:hidden flex-col bg-[#1a1a1f] border-b border-[#303030] shrink-0">
+          <div className="w-10 h-1 rounded-full bg-[#555562] mx-auto mt-2 mb-1" />
+          <div className="flex items-center justify-between px-3 py-1.5">
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              {TABS.find((t) => t.id === activeTab)?.title || 'Media & Tools'}
+            </span>
+            <button
+              onClick={onMobileClose}
+              className="p-1 rounded-[2px] text-[#A0A0AA] hover:text-white bg-[#25252c] border border-[#383842] transition"
+              aria-label="Close panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tab Navigation - Desktop NLE Tabs */}
-      <div className="h-8 flex border-b border-[#303030] bg-[#1a1a1a] px-0.5">
+      <div className="h-8 flex border-b border-[#303030] bg-[#1a1a1a] px-0.5 overflow-x-auto no-scrollbar shrink-0">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

@@ -211,3 +211,16 @@ input[type="range"]:focus::-webkit-slider-thumb {
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+/* Mobile responsive safe area and touch utilities */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0.25rem, env(safe-area-inset-top, 0px));
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
+}

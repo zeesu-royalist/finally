@@ -19,6 +19,7 @@ import {
   VolumeX,
   Gauge,
   AudioWaveform,
+  X,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
 
@@ -29,29 +30,45 @@ function InspectorHeader({
   icon: Icon,
   iconColor = 'text-[#8E8E8E]',
   onDelete,
+  onClose,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   iconColor?: string;
   onDelete?: () => void;
+  onClose?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-[#333333] pb-2.5">
-      <div className="flex items-center gap-1.5">
-        <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[#E6E6E6]">
-          {title}
-        </span>
+    <div>
+      {onClose && <div className="w-10 h-1 rounded-full bg-[#555562] mx-auto mb-2 md:hidden" />}
+      <div className="flex items-center justify-between border-b border-[#333333] pb-2.5">
+        <div className="flex items-center gap-1.5">
+          <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#E6E6E6]">
+            {title}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="p-1 rounded-[2px] text-[#8E8E8E] hover:text-rose-400 hover:bg-rose-500/15 transition cursor-pointer"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-[2px] text-[#8E8E8E] hover:text-white bg-[#25252c] border border-[#383842] transition md:hidden"
+              title="Close inspector"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
-      {onDelete && (
-        <button
-          onClick={onDelete}
-          className="p-1 rounded-[2px] text-[#8E8E8E] hover:text-rose-400 hover:bg-rose-500/15 transition cursor-pointer"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      )}
     </div>
   );
 }
@@ -241,7 +258,15 @@ function SpeedControl({
   );
 }
 
-export default function PropertiesPanel() {
+interface PropertiesPanelProps {
+  isMobileDrawerOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function PropertiesPanel({
+  isMobileDrawerOpen = false,
+  onMobileClose,
+}: PropertiesPanelProps = {}) {
   const {
     selectedItem,
     videoClips,
@@ -263,6 +288,10 @@ export default function PropertiesPanel() {
     activeVideoClip,
   } = useEditor();
 
+  const panelContainerClass = isMobileDrawerOpen
+    ? 'fixed inset-x-0 bottom-0 top-12 z-40 bg-[#252526] border-t border-[#383842] rounded-t-xl shadow-2xl flex flex-col select-none overflow-y-auto p-3.5 space-y-3 pb-safe md:static md:inset-auto md:w-80 md:rounded-none md:border-t-0 md:border-l md:border-[#333333] md:p-3 md:pb-3'
+    : 'hidden md:flex w-80 border-l border-[#333333] bg-[#252526] flex-col select-none shrink-0 z-20 overflow-y-auto p-3 space-y-3';
+
   // 1. Image Overlay Inspector
   if (selectedItem?.type === 'image') {
     const img = imageClips.find((i) => i.id === selectedItem.id);
@@ -277,8 +306,8 @@ export default function PropertiesPanel() {
     );
 
     return (
-      <div className="w-80 border-l border-[#333333] bg-[#252526] flex flex-col select-none shrink-0 z-20 overflow-y-auto p-3 space-y-3">
-        <InspectorHeader title="Image Inspector" icon={ImageIcon} onDelete={deleteSelectedItem} />
+      <div className={panelContainerClass}>
+        <InspectorHeader title="Image Inspector" icon={ImageIcon} onDelete={deleteSelectedItem} onClose={onMobileClose} />
 
         <div className="p-2.5 rounded-[2px] bg-[#202020] border border-[#303030] space-y-2">
           <div className="h-24 rounded-[2px] bg-[#141414] border border-[#2a2a2a] flex items-center justify-center overflow-hidden p-2">
@@ -357,8 +386,8 @@ export default function PropertiesPanel() {
     if (!text) return null;
 
     return (
-      <div className="w-80 border-l border-[#333333] bg-[#252526] flex flex-col select-none shrink-0 z-20 overflow-y-auto p-3 space-y-3">
-        <InspectorHeader title="Text / Title Inspector" icon={Type} onDelete={deleteSelectedItem} />
+      <div className={panelContainerClass}>
+        <InspectorHeader title="Text / Title Inspector" icon={Type} onDelete={deleteSelectedItem} onClose={onMobileClose} />
 
         <div className="space-y-1">
           <label className="text-[10px] font-semibold text-[#777777] uppercase">Text Content</label>
@@ -475,15 +504,15 @@ export default function PropertiesPanel() {
     if (!audio) return null;
 
     const isVideoAudio = audio.trackType === 'video-audio';
-    const accentColor = 'text-white';
     const activeBg = 'border-white bg-[#2A2A32] text-white font-medium';
 
     return (
-      <div className="w-80 border-l border-[#333333] bg-[#252526] flex flex-col select-none shrink-0 z-20 overflow-y-auto p-3 space-y-3">
+      <div className={panelContainerClass}>
         <InspectorHeader
           title={isVideoAudio ? "Extracted Audio Track" : "Audio Track"}
           icon={isVideoAudio ? AudioWaveform : Music}
           onDelete={deleteSelectedItem}
+          onClose={onMobileClose}
         />
 
         {isVideoAudio && (
@@ -540,12 +569,24 @@ export default function PropertiesPanel() {
     (videoClips.length > 0 ? videoClips[0] : null);
 
   return (
-    <div className="w-80 border-l border-[#333333] bg-[#252526] flex flex-col select-none shrink-0 z-20 overflow-y-auto p-3 space-y-3">
-      <div className="flex items-center gap-1.5 border-b border-[#333333] pb-2.5">
-        <Settings2 className="w-3.5 h-3.5 text-[#8E8E8E]" />
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[#E6E6E6]">
-          Project Overview
-        </span>
+    <div className={panelContainerClass}>
+      {isMobileDrawerOpen && <div className="w-10 h-1 rounded-full bg-[#555562] mx-auto mb-1 md:hidden" />}
+      <div className="flex items-center justify-between border-b border-[#333333] pb-2.5">
+        <div className="flex items-center gap-1.5">
+          <Settings2 className="w-3.5 h-3.5 text-[#8E8E8E]" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#E6E6E6]">
+            Project Overview
+          </span>
+        </div>
+        {onMobileClose && (
+          <button
+            onClick={onMobileClose}
+            className="p-1 rounded-[2px] text-[#8E8E8E] hover:text-white bg-[#25252c] border border-[#383842] transition md:hidden"
+            title="Close inspector"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {selectedVideoClip && (

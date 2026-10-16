@@ -30,9 +30,8 @@ export default function Hero() {
           click-drag to rotate and mouse-wheel to zoom without needing any preliminary click.
           When !isInteractive: Placed at z-0 with pointer-events-none so regular page scrolling is unobstructed. */}
       <div
-        className={`absolute inset-0 w-full h-full transition-all duration-300 ${
-          isInteractive ? 'z-30 pointer-events-auto' : 'z-0 pointer-events-none'
-        }`}
+        className={`absolute inset-0 w-full h-full transition-all duration-300 ${isInteractive ? 'z-30 pointer-events-auto' : 'z-0 pointer-events-none'
+          }`}
       >
         <Model3DViewer
           modelPath="/3d modal/baker_and_the_bridge.glb"
@@ -46,19 +45,17 @@ export default function Hero() {
       {/* Soft Luminous Ambient Stage:
           Only visible when 3D model is loaded and interactive mode is inactive */}
       <div
-        className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ease-out bg-[radial-gradient(ellipse_65%_55%_at_50%_48%,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.45)_55%,transparent_85%)] ${
-          isContentVisible ? 'opacity-100 pointer-events-none z-0' : 'opacity-0 pointer-events-none -z-10'
-        }`}
+        className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ease-out bg-[radial-gradient(ellipse_65%_55%_at_50%_48%,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.45)_55%,transparent_85%)] ${isContentVisible ? 'opacity-100 pointer-events-none z-0' : 'opacity-0 pointer-events-none -z-10'
+          }`}
       />
 
       {/* Heading Text & Buttons - Centered directly over the 3D model:
           Hidden until 3D model is fully loaded, smoothly fades in when ready! */}
       <div
-        className={`relative w-full max-w-4xl mx-auto px-4 sm:px-6 flex flex-col items-center text-center transition-all duration-700 ease-out ${
-          isContentVisible
-            ? 'opacity-100 scale-100 pointer-events-none z-10'
-            : 'opacity-0 scale-95 pointer-events-none invisible select-none -z-10'
-        }`}
+        className={`relative w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-12 flex flex-col items-center text-center transition-all duration-700 ease-out ${isContentVisible
+          ? 'opacity-100 scale-100 pointer-events-none z-10'
+          : 'opacity-0 scale-95 pointer-events-none invisible select-none -z-10'
+          }`}
       >
         {/* Core Content Block */}
         <div className="flex flex-col items-center">
@@ -75,9 +72,8 @@ export default function Hero() {
 
         {/* Centered Buttons */}
         <div
-          className={`mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-3 ${
-            isContentVisible ? 'pointer-events-auto' : 'pointer-events-none invisible'
-          }`}
+          className={`mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-3 ${isContentVisible ? 'pointer-events-auto' : 'pointer-events-none invisible'
+            }`}
         >
           {/* Get Started Button */}
           <Link

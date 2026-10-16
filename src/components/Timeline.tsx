@@ -18,6 +18,7 @@ import {
   Redo2,
   Image as ImageIcon,
   AudioWaveform,
+  Mic,
   Gauge,
   RotateCw,
   Palette,
@@ -25,6 +26,8 @@ import {
   Scaling,
   ChevronDown,
   Flag,
+  X,
+  Check,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
 import { FILTER_PRESETS, DEFAULT_ADJUSTMENTS } from '../utils/filterUtils';
@@ -40,7 +43,9 @@ function TimelineClipBlock({
   borderClass,
   isCompact = false,
   onMouseDown,
+  onTouchStart,
   onTrimMouseDown,
+  onTrimTouchStart,
   onSelect,
   children,
 }: {
@@ -52,7 +57,9 @@ function TimelineClipBlock({
   borderClass: string;
   isCompact?: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
   onTrimMouseDown: (e: React.MouseEvent, edge: 'start' | 'end') => void;
+  onTrimTouchStart?: (e: React.TouchEvent, edge: 'start' | 'end') => void;
   onSelect: () => void;
   children: React.ReactNode;
 }) {
@@ -62,6 +69,7 @@ function TimelineClipBlock({
   return (
     <div
       onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
@@ -72,13 +80,15 @@ function TimelineClipBlock({
     >
       <div
         onMouseDown={(e) => onTrimMouseDown(e, 'start')}
-        className={`absolute left-0 top-0 bottom-0 ${isCompact ? 'w-1 hover:w-2' : 'w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
+        onTouchStart={(e) => onTrimTouchStart?.(e, 'start')}
+        className={`absolute left-0 top-0 bottom-0 ${isCompact ? 'w-1.5 sm:w-1 hover:w-2' : 'w-2 sm:w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
         title="Trim start"
       />
       {children}
       <div
         onMouseDown={(e) => onTrimMouseDown(e, 'end')}
-        className={`absolute right-0 top-0 bottom-0 ${isCompact ? 'w-1 hover:w-2' : 'w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
+        onTouchStart={(e) => onTrimTouchStart?.(e, 'end')}
+        className={`absolute right-0 top-0 bottom-0 ${isCompact ? 'w-1.5 sm:w-1 hover:w-2' : 'w-2 sm:w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
         title="Trim end"
       />
     </div>
@@ -152,16 +162,21 @@ export default function Timeline() {
   const timelineContentWidth = Math.max(containerWidth, (totalDuration + 8) * pxPerSec);
 
   const [activePopover, setActivePopover] = useState<'speed' | 'filter' | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<{ x: number; y: number } | null>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
-        setActivePopover(null);
-      }
-    };
-    window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const handleOpenSpeed = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPopoverAnchor({ x: rect.left, y: rect.top });
+    setActivePopover((prev) => (prev === 'speed' ? null : 'speed'));
+  };
+
+  const handleOpenFilter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPopoverAnchor({ x: rect.left, y: rect.top });
+    setActivePopover((prev) => (prev === 'filter' ? null : 'filter'));
+  };
 
   const handleTracksScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (headersScrollRef.current) {
@@ -193,6 +208,16 @@ export default function Timeline() {
     seekTo(Math.max(0, clickX / pxPerSec));
   };
 
+  const handleRulerTouchStart = (e: React.TouchEvent) => {
+    if (!rulerRef.current || e.touches.length === 0) return;
+    setIsScrubbing(true);
+    const touch = e.touches[0];
+    const rect = rulerRef.current.getBoundingClientRect();
+    const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
+    const clickX = touch.clientX - rect.left + scrollLeft;
+    seekTo(Math.max(0, clickX / pxPerSec));
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isScrubbing && rulerRef.current) {
@@ -212,7 +237,27 @@ export default function Timeline() {
       }
     };
 
-    const handleMouseUp = () => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      if (isScrubbing && rulerRef.current) {
+        const rect = rulerRef.current.getBoundingClientRect();
+        const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
+        const clickX = touch.clientX - rect.left + scrollLeft;
+        seekTo(Math.max(0, clickX / pxPerSec));
+      } else if (draggingClip) {
+        const deltaSec = (touch.clientX - draggingClip.startX) / pxPerSec;
+        moveClip(draggingClip.type, draggingClip.id, Math.max(0, draggingClip.initialStartTime + deltaSec));
+      } else if (trimmingClip) {
+        const deltaSec = (touch.clientX - trimmingClip.startX) / pxPerSec;
+        if (Math.abs(deltaSec) > 0.05) {
+          trimClip(trimmingClip.type, trimmingClip.id, trimmingClip.edge, deltaSec);
+          setTrimmingClip((prev) => (prev ? { ...prev, startX: touch.clientX } : null));
+        }
+      }
+    };
+
+    const handleDragEnd = () => {
       setIsScrubbing(false);
       setDraggingClip(null);
       setTrimmingClip(null);
@@ -220,12 +265,16 @@ export default function Timeline() {
 
     if (isScrubbing || draggingClip || trimmingClip) {
       window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleDragEnd);
     }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleDragEnd);
     };
   }, [isScrubbing, draggingClip, trimmingClip, pxPerSec, seekTo, moveClip, trimClip]);
 
@@ -393,16 +442,16 @@ export default function Timeline() {
   return (
     <div
       style={{ height: hasVideoAudioTrack ? '295px' : '265px' }}
-      className="transition-[height] duration-300 ease-in-out border-t border-[#303030] bg-[#181818] flex flex-col select-none shrink-0 relative z-20"
+      className="max-h-[38vh] md:max-h-none transition-[height] duration-300 ease-in-out border-t border-[#303030] bg-[#181818] flex flex-col select-none shrink-0 relative z-20 pb-safe md:pb-0"
     >
       {/* Hidden File Inputs for Toolbar Quick Add */}
       <input ref={toolbarImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
       <input ref={toolbarAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
 
-      {/* Toolbar - Desktop NLE Ribbon */}
+      {/* Toolbar - Desktop NLE Ribbon & Mobile Horizontal Scroll */}
       <div
         ref={toolbarRef}
-        className="h-9 border-b border-[#303030] bg-[#1e1e1e] px-2.5 flex items-center justify-between gap-1 shrink-0 relative overflow-visible z-30 text-xs"
+        className="h-9 border-b border-[#303030] bg-[#1e1e1e] px-2 sm:px-2.5 flex items-center justify-start md:justify-between gap-1 shrink-0 relative overflow-x-auto no-scrollbar z-30 text-xs"
       >
         {/* Section 1: Playback & Split & Delete & History */}
         <div className="flex items-center gap-1 shrink-0">
@@ -491,7 +540,7 @@ export default function Timeline() {
             <span>+ Image</span>
           </button>
 
-          {/* + Text */}
+          {/* + Title */}
           <button
             onClick={handleAddText}
             className="flex items-center gap-1 px-2 py-0.5 rounded-[2px] border border-[#353535] bg-[#252526] hover:bg-[#2d2d2e] text-xs font-normal text-[#CCCCCC] hover:text-[#E6E6E6] transition cursor-pointer"
@@ -510,66 +559,36 @@ export default function Timeline() {
             <Music className="w-3 h-3 text-[#8E8E8E]" />
             <span>+ Audio</span>
           </button>
+
+          {/* Record */}
+          <button
+            disabled
+            className="flex items-center gap-1 px-2 py-0.5 rounded-[2px] border border-[#353535] bg-[#252526] hover:bg-[#2d2d2e] disabled:opacity-30 disabled:pointer-events-none text-xs font-normal text-[#CCCCCC] transition cursor-pointer"
+            title="Record Audio"
+          >
+            <Mic className="w-3 h-3 text-[#8E8E8E]" />
+            <span>Record</span>
+          </button>
         </div>
 
         {/* Section 3: Modifiers (Speed, Rotate, Transform, Filters, Mute) */}
         <div className="flex items-center gap-1 shrink-0">
           <div className="h-3.5 w-px bg-[#303030] mx-0.5" />
 
-          {/* Speed Control Popover */}
-          <div className="relative">
-            <button
-              onClick={() => setActivePopover(activePopover === 'speed' ? null : 'speed')}
-              disabled={!targetSpeedClip.clip}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-[2px] border text-xs font-normal transition cursor-pointer disabled:opacity-30 disabled:pointer-events-none ${currentSpeed !== 1 || activePopover === 'speed'
-                ? 'border-[#555562] bg-[#2A2A32] text-white'
+          {/* Speed Control Button */}
+          <button
+            onClick={handleOpenSpeed}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-[2px] border text-xs font-normal transition cursor-pointer ${
+              currentSpeed !== 1 || activePopover === 'speed'
+                ? 'border-[#555562] bg-[#2A2A32] text-white shadow-xs'
                 : 'bg-[#222228] hover:bg-[#2A2A32] border-[#383842] text-[#CCCCCC]'
-                }`}
-              title="Change Speed"
-            >
-              <Gauge className="w-3 h-3 text-[#8E8E8E]" />
-              <span>{currentSpeed !== 1 ? `${currentSpeed.toFixed(1)}x` : 'Speed'}</span>
-              <ChevronDown className="w-2.5 h-2.5 text-[#686868]" />
-            </button>
-
-            {/* Speed Popover */}
-            {activePopover === 'speed' && targetSpeedClip.clip && (
-              <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 w-56 p-2.5 rounded-[2px] bg-[#1e1e1e] border border-[#383838] shadow-2xl z-50 space-y-2">
-                <div className="flex items-center justify-between border-b border-[#303030] pb-1.5">
-                  <div className="flex items-center gap-1 text-xs font-medium text-[#E6E6E6]">
-                    <Gauge className="w-3.5 h-3.5 text-[#8E8E8E]" />
-                    <span>Speed / Duration</span>
-                  </div>
-                  <span className="font-mono text-xs font-semibold text-white">
-                    {currentSpeed.toFixed(2)}x
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0.25"
-                  max="4"
-                  step="0.05"
-                  value={currentSpeed}
-                  onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                  className="w-full cursor-pointer"
-                />
-                <div className="grid grid-cols-5 gap-1 pt-0.5">
-                  {[0.5, 0.75, 1, 1.5, 2].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleSpeedChange(s)}
-                      className={`py-0.5 rounded-[2px] text-[10px] font-mono border transition cursor-pointer ${Math.abs(currentSpeed - s) < 0.05
-                        ? 'border-white bg-[#2A2A32] text-white font-medium'
-                        : 'border-[#303030] bg-[#232323] text-[#A0A0A0] hover:text-white'
-                        }`}
-                    >
-                      {s}x
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            }`}
+            title="Change Playback Speed"
+          >
+            <Gauge className="w-3 h-3 text-[#8E8E8E]" />
+            <span>{currentSpeed !== 1 ? `${currentSpeed.toFixed(1)}x` : 'Speed'}</span>
+            <ChevronDown className="w-2.5 h-2.5 text-[#686868]" />
+          </button>
 
           {/* Rotate 90° */}
           <button
@@ -626,55 +645,24 @@ export default function Timeline() {
             <span className="hidden xl:inline">Center</span>
           </button>
 
-          {/* Color Filters Popover */}
-          <div className="relative">
-            <button
-              onClick={() => setActivePopover(activePopover === 'filter' ? null : 'filter')}
-              disabled={!targetVideo}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-[2px] border text-xs font-normal transition cursor-pointer disabled:opacity-30 disabled:pointer-events-none ${(targetVideo?.adjustments?.filter && targetVideo.adjustments.filter !== 'none') || activePopover === 'filter'
-                ? 'border-[#555562] bg-[#2A2A32] text-white'
+          {/* Color Filters Button */}
+          <button
+            onClick={handleOpenFilter}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-[2px] border text-xs font-normal transition cursor-pointer ${
+              (targetVideo?.adjustments?.filter && targetVideo.adjustments.filter !== 'none') || activePopover === 'filter'
+                ? 'border-[#555562] bg-[#2A2A32] text-white shadow-xs'
                 : 'bg-[#222228] hover:bg-[#2A2A32] border-[#383842] text-[#CCCCCC]'
-                }`}
-              title="Apply color looks to video"
-            >
-              <Palette className="w-3 h-3 text-[#8E8E8E]" />
-              <span className="capitalize">{targetVideo?.adjustments?.filter && targetVideo.adjustments.filter !== 'none' ? targetVideo.adjustments.filter : 'Look'}</span>
-              <ChevronDown className="w-2.5 h-2.5 text-[#686868]" />
-            </button>
-
-            {/* Filter Popover */}
-            {activePopover === 'filter' && targetVideo && (
-              <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 w-56 p-2 rounded-[2px] bg-[#1e1e1e] border border-[#383838] shadow-2xl z-50 space-y-1.5">
-                <div className="flex items-center justify-between border-b border-[#303030] pb-1.5">
-                  <div className="flex items-center gap-1 text-xs font-medium text-[#E6E6E6]">
-                    <Palette className="w-3.5 h-3.5 text-[#8E8E8E]" />
-                    <span>Color Looks</span>
-                  </div>
-                  <span className="text-[9px] px-1 py-0.2 rounded-[1px] bg-[#222228] text-[#D4D4D8] border border-[#383842] font-medium capitalize">
-                    {targetVideo.adjustments.filter || 'Normal'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto pr-1">
-                  {FILTER_PRESETS.map((p) => {
-                    const isActive = (targetVideo.adjustments.filter || 'none') === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => handleApplyFilter(p)}
-                        className={`p-1.5 rounded-[2px] text-left border text-[11px] transition cursor-pointer flex items-center gap-1.5 ${isActive
-                          ? 'border-white bg-[#2A2A32] text-white font-medium'
-                          : 'border-[#2d2d2d] bg-[#232323] text-[#A0A0A0] hover:text-white hover:border-[#383838]'
-                          }`}
-                      >
-                        <span className="w-2 h-2 rounded-[1px] shrink-0" style={{ background: p.swatchGradient }} />
-                        <span className="truncate">{p.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+            }`}
+            title="Apply color looks to video"
+          >
+            <Palette className="w-3 h-3 text-[#8E8E8E]" />
+            <span className="capitalize">
+              {targetVideo?.adjustments?.filter && targetVideo.adjustments.filter !== 'none'
+                ? targetVideo.adjustments.filter
+                : 'Look'}
+            </span>
+            <ChevronDown className="w-2.5 h-2.5 text-[#686868]" />
+          </button>
 
           {/* Mute Toggle */}
           <button
@@ -723,9 +711,10 @@ export default function Timeline() {
       {/* Multi-track Area */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Track Headers Column */}
-        <div ref={headersScrollRef} className="w-32 border-r border-[#303030] bg-[#1a1a1a] flex flex-col shrink-0 z-10 text-xs overflow-hidden select-none">
-          <div className="h-7 shrink-0 border-b border-[#303030] px-2.5 flex items-center text-[10px] uppercase font-bold text-[#686868] tracking-wider bg-[#161616]">
-            Sequence
+        <div ref={headersScrollRef} className="w-14 sm:w-16 md:w-32 border-r border-[#303030] bg-[#1a1a1a] flex flex-col shrink-0 z-10 text-xs overflow-hidden select-none">
+          <div className="h-7 shrink-0 border-b border-[#303030] px-1.5 sm:px-2 md:px-2.5 flex items-center justify-center md:justify-start text-[9px] md:text-[10px] uppercase font-bold text-[#686868] tracking-wider bg-[#161616]">
+            <span className="hidden md:inline">Sequence</span>
+            <span className="inline md:hidden">Tracks</span>
           </div>
           {TRACK_HEADERS.map((h) => {
             const Icon = h.icon;
@@ -733,19 +722,24 @@ export default function Timeline() {
             return (
               <div
                 key={h.label}
-                className={`${isCompact ? 'h-7' : 'h-14'} shrink-0 border-b border-[#282828] bg-[#1f1f1f] px-2.5 flex items-center justify-between`}
+                className={`${isCompact ? 'h-7' : 'h-14'} shrink-0 border-b border-[#282828] bg-[#1f1f1f] px-1 sm:px-1.5 md:px-2.5 flex items-center justify-center md:justify-between`}
               >
-                <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
                   <Icon className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} ${h.color} shrink-0`} />
-                  <span className={`font-normal ${isCompact ? 'text-[10px]' : 'text-xs'} text-[#9B9B9B] truncate`}>
+                  <span className={`hidden md:inline font-normal ${isCompact ? 'text-[10px]' : 'text-xs'} text-[#9B9B9B] truncate`}>
                     {h.label}
                   </span>
+                  <span className={`inline md:hidden font-mono font-semibold ${isCompact ? 'text-[9px]' : 'text-[10px]'} text-[#9B9B9B] truncate`}>
+                    {h.label.split(' ')[0]}
+                  </span>
                 </div>
-                {h.isAudio ? (
-                  <Volume2 className="w-3 h-3 text-[#585858] shrink-0" />
-                ) : (
-                  <Eye className="w-3 h-3 text-[#585858] shrink-0" />
-                )}
+                <div className="hidden md:block shrink-0">
+                  {h.isAudio ? (
+                    <Volume2 className="w-3 h-3 text-[#585858]" />
+                  ) : (
+                    <Eye className="w-3 h-3 text-[#585858]" />
+                  )}
+                </div>
               </div>
             );
           })}
@@ -754,7 +748,13 @@ export default function Timeline() {
         {/* Tracks Scrollable Canvas */}
         <div ref={tracksScrollRef} onScroll={handleTracksScroll} className="flex-1 flex flex-col overflow-x-auto overflow-y-auto relative bg-[#141414]">
           {/* Timeline Ruler */}
-          <div ref={rulerRef} onMouseDown={handleRulerMouseDown} style={{ width: `${timelineContentWidth}px`, minWidth: '100%' }} className="h-7 shrink-0 border-b border-[#282828] relative cursor-pointer select-none bg-[#1a1a1a] overflow-visible min-w-full">
+          <div
+            ref={rulerRef}
+            onMouseDown={handleRulerMouseDown}
+            onTouchStart={handleRulerTouchStart}
+            style={{ width: `${timelineContentWidth}px`, minWidth: '100%' }}
+            className="h-7 shrink-0 border-b border-[#282828] relative cursor-pointer select-none bg-[#1a1a1a] overflow-visible min-w-full"
+          >
             {ticks.map((t) => (
               <div key={t} style={{ left: `${t * pxPerSec}px` }} className="absolute top-0 bottom-0 flex flex-col justify-between">
                 <span className="text-[9px] font-mono text-[#686868] pl-1 select-none">{t}s</span>
@@ -826,10 +826,24 @@ export default function Timeline() {
                     setSelectedItem({ type: 'text', id: clip.id });
                     setDraggingClip({ type: 'text', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'text', id: clip.id });
+                      setDraggingClip({ type: 'text', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
+                    }
+                  }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
                     setSelectedItem({ type: 'text', id: clip.id });
                     setTrimmingClip({ type: 'text', id: clip.id, edge, startX: e.clientX });
+                  }}
+                  onTrimTouchStart={(e, edge) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'text', id: clip.id });
+                      setTrimmingClip({ type: 'text', id: clip.id, edge, startX: e.touches[0].clientX });
+                    }
                   }}
                   onSelect={() => setSelectedItem({ type: 'text', id: clip.id })}
                 >
@@ -858,10 +872,24 @@ export default function Timeline() {
                     setSelectedItem({ type: 'image', id: clip.id });
                     setDraggingClip({ type: 'image', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'image', id: clip.id });
+                      setDraggingClip({ type: 'image', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
+                    }
+                  }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
                     setSelectedItem({ type: 'image', id: clip.id });
                     setTrimmingClip({ type: 'image', id: clip.id, edge, startX: e.clientX });
+                  }}
+                  onTrimTouchStart={(e, edge) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'image', id: clip.id });
+                      setTrimmingClip({ type: 'image', id: clip.id, edge, startX: e.touches[0].clientX });
+                    }
                   }}
                   onSelect={() => setSelectedItem({ type: 'image', id: clip.id })}
                 >
@@ -890,10 +918,24 @@ export default function Timeline() {
                     setSelectedItem({ type: 'video', id: clip.id });
                     setDraggingClip({ type: 'video', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'video', id: clip.id });
+                      setDraggingClip({ type: 'video', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
+                    }
+                  }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
                     setSelectedItem({ type: 'video', id: clip.id });
                     setTrimmingClip({ type: 'video', id: clip.id, edge, startX: e.clientX });
+                  }}
+                  onTrimTouchStart={(e, edge) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'video', id: clip.id });
+                      setTrimmingClip({ type: 'video', id: clip.id, edge, startX: e.touches[0].clientX });
+                    }
                   }}
                   onSelect={() => setSelectedItem({ type: 'video', id: clip.id })}
                 >
@@ -939,10 +981,29 @@ export default function Timeline() {
                         initialStartTime: clip.startTime,
                       });
                     }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      if (e.touches.length > 0) {
+                        setSelectedItem({ type: 'audio', id: clip.id });
+                        setDraggingClip({
+                          type: 'audio',
+                          id: clip.id,
+                          startX: e.touches[0].clientX,
+                          initialStartTime: clip.startTime,
+                        });
+                      }
+                    }}
                     onTrimMouseDown={(e, edge) => {
                       e.stopPropagation();
                       setSelectedItem({ type: 'audio', id: clip.id });
                       setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.clientX });
+                    }}
+                    onTrimTouchStart={(e, edge) => {
+                      e.stopPropagation();
+                      if (e.touches.length > 0) {
+                        setSelectedItem({ type: 'audio', id: clip.id });
+                        setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.touches[0].clientX });
+                      }
                     }}
                     onSelect={() => setSelectedItem({ type: 'audio', id: clip.id })}
                   >
@@ -978,10 +1039,24 @@ export default function Timeline() {
                     setSelectedItem({ type: 'audio', id: clip.id });
                     setDraggingClip({ type: 'audio', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'audio', id: clip.id });
+                      setDraggingClip({ type: 'audio', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
+                    }
+                  }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
                     setSelectedItem({ type: 'audio', id: clip.id });
                     setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.clientX });
+                  }}
+                  onTrimTouchStart={(e, edge) => {
+                    e.stopPropagation();
+                    if (e.touches.length > 0) {
+                      setSelectedItem({ type: 'audio', id: clip.id });
+                      setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.touches[0].clientX });
+                    }
                   }}
                   onSelect={() => setSelectedItem({ type: 'audio', id: clip.id })}
                 >
@@ -1001,6 +1076,185 @@ export default function Timeline() {
           </div>
         </div>
       </div>
+
+      {/* ================= SPEED & LOOK FLOATING UNCLIPPED POPOVER ================= */}
+      {activePopover && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 sm:bg-transparent flex flex-col justify-end sm:justify-start"
+          onClick={() => setActivePopover(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={
+              popoverAnchor && typeof window !== 'undefined' && window.innerWidth >= 640
+                ? {
+                    position: 'fixed',
+                    bottom: `${Math.max(10, window.innerHeight - popoverAnchor.y + 6)}px`,
+                    left: `${Math.max(12, Math.min(window.innerWidth - 290, popoverAnchor.x - 50))}px`,
+                  }
+                : undefined
+            }
+            className="w-full sm:w-72 bg-[#1e1e24] border border-[#3e3e4a] rounded-t-xl sm:rounded-[3px] shadow-2xl p-4 sm:p-3.5 space-y-3 sm:space-y-2.5 pb-12 sm:pb-3.5 pb-safe max-h-[85vh] sm:max-h-[80vh] overflow-y-auto"
+          >
+            {/* Speed Popover */}
+            {activePopover === 'speed' && (
+              <>
+                <div className="flex items-center justify-between border-b border-[#303030] pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                    <Gauge className="w-3.5 h-3.5 text-white" />
+                    <span>Speed / Duration</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-white px-1.5 py-0.2 rounded-[2px] bg-[#2a2a35] border border-[#3e3e4a]">
+                      {currentSpeed.toFixed(2)}x
+                    </span>
+                    <button
+                      onClick={() => setActivePopover(null)}
+                      className="p-1 rounded-[2px] text-[#8E8E93] hover:text-white bg-[#25252d] border border-[#383842]"
+                      aria-label="Close speed popover"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {!targetSpeedClip.clip ? (
+                  <div className="text-center py-3 px-2 space-y-1.5">
+                    <p className="text-xs font-medium text-white">No Clip on Timeline</p>
+                    <p className="text-[10px] text-[#8E8E93]">
+                      Import or add a video/audio clip to the timeline to adjust its playback speed.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-[10px] text-[#A0A0A0] px-2 py-0.5 rounded-[2px] bg-[#141416] border border-[#2d2d36] inline-block font-mono">
+                      {currentSpeed < 0.99
+                        ? `${currentSpeed.toFixed(2)}x • Slow Motion`
+                        : currentSpeed > 1.01
+                          ? `${currentSpeed.toFixed(2)}x • Fast Motion`
+                          : '1.00x • Normal Speed'}
+                    </div>
+
+                    <input
+                      type="range"
+                      min="0.25"
+                      max="4"
+                      step="0.05"
+                      value={currentSpeed}
+                      onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                      className="w-full cursor-pointer accent-white"
+                    />
+
+                    <div className="text-[10px] text-[#8E8E93] uppercase font-bold tracking-wider pt-0.5">
+                      Speed Presets
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[0.25, 0.5, 0.75, 1].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => handleSpeedChange(s)}
+                          className={`py-2 sm:py-1 rounded-[2px] text-xs sm:text-[10px] font-mono border transition cursor-pointer ${
+                            Math.abs(currentSpeed - s) < 0.04
+                              ? 'border-white bg-[#2A2A35] text-white font-medium'
+                              : 'border-[#303030] bg-[#232323] text-[#A0A0A0] hover:text-white'
+                          }`}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[1.5, 2, 4].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => handleSpeedChange(s)}
+                          className={`py-2 sm:py-1 rounded-[2px] text-xs sm:text-[10px] font-mono border transition cursor-pointer ${
+                            Math.abs(currentSpeed - s) < 0.04
+                              ? 'border-white bg-[#2A2A35] text-white font-medium'
+                              : 'border-[#303030] bg-[#232323] text-[#A0A0A0] hover:text-white'
+                          }`}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
+
+                    {currentSpeed !== 1 && (
+                      <button
+                        onClick={() => handleSpeedChange(1)}
+                        className="w-full py-2 sm:py-1 text-xs sm:text-[11px] rounded-[2px] bg-[#25252c] hover:bg-[#2d2d36] text-[#A0A0AA] hover:text-white border border-[#383842] transition cursor-pointer font-medium mt-1"
+                      >
+                        Reset to Normal Speed (1.00x)
+                      </button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Look / Color Filters Popover */}
+            {activePopover === 'filter' && (
+              <>
+                <div className="flex items-center justify-between border-b border-[#303030] pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                    <Palette className="w-3.5 h-3.5 text-white" />
+                    <span>Color Looks / LUTs</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium text-white px-1.5 py-0.2 rounded-[2px] bg-[#2a2a35] border border-[#3e3e4a] capitalize">
+                      {targetVideo?.adjustments?.filter && targetVideo.adjustments.filter !== 'none'
+                        ? targetVideo.adjustments.filter
+                        : 'Normal'}
+                    </span>
+                    <button
+                      onClick={() => setActivePopover(null)}
+                      className="p-1 rounded-[2px] text-[#8E8E93] hover:text-white bg-[#25252d] border border-[#383842]"
+                      aria-label="Close color look popover"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {!targetVideo ? (
+                  <div className="text-center py-3 px-2 space-y-1.5">
+                    <p className="text-xs font-medium text-white">No Video Clip</p>
+                    <p className="text-[10px] text-[#8E8E93]">
+                      Add a video clip to the timeline to apply color looks and filters.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 sm:max-h-64 sm:overflow-y-auto pr-0.5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {FILTER_PRESETS.map((p) => {
+                        const isActive = (targetVideo.adjustments.filter || 'none') === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => handleApplyFilter(p)}
+                            className={`p-2 sm:p-1.5 rounded-[2px] text-left border text-xs sm:text-[11px] transition cursor-pointer flex items-center justify-between ${
+                              isActive
+                                ? 'border-white bg-[#2A2A35] text-white font-medium shadow-sm'
+                                : 'border-[#2d2d36] bg-[#16161a] text-[#A0A0A0] hover:text-white hover:border-[#383842]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="w-3 h-3 sm:w-2.5 sm:h-2.5 rounded-[1px] shrink-0" style={{ background: p.swatchGradient }} />
+                              <span className="truncate">{p.name}</span>
+                            </div>
+                            {isActive && <Check className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-white shrink-0 ml-1" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

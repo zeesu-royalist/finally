@@ -79,8 +79,8 @@ export default function Navbar() {
   const isDesktopMenuVisible = !isScrolled || isExpanded;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 px-3 sm:px-8 pt-3 sm:pt-6">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 px-4 sm:px-6 lg:px-12 pt-3 sm:pt-6">
+      <div className="max-w-[1360px] mx-auto flex items-center justify-between">
 
         {/* ================= LEFT PILL: Brand Logo + Menu Dot ================= */}
         <div ref={leftPillRef} className="relative pointer-events-auto">
@@ -113,11 +113,10 @@ export default function Navbar() {
 
             {/* Laptop/Desktop Only: Expandable Horizontal Inline Links (100% UNTOUCHED) */}
             <div
-              className={`hidden sm:flex items-center transition-all duration-300 ease-out overflow-hidden ${
-                isDesktopMenuVisible
-                  ? 'max-w-[480px] opacity-100 pl-3 sm:pl-4 border-l border-zinc-300/80'
-                  : 'max-w-0 opacity-0 pl-0 border-l-0'
-              }`}
+              className={`hidden sm:flex items-center transition-all duration-300 ease-out overflow-hidden ${isDesktopMenuVisible
+                ? 'max-w-[480px] opacity-100 pl-3 sm:pl-4 border-l border-zinc-300/80'
+                : 'max-w-0 opacity-0 pl-0 border-l-0'
+                }`}
             >
               <nav className="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium text-zinc-700 whitespace-nowrap">
                 {NAV_ITEMS.map((item) => (
@@ -142,14 +141,12 @@ export default function Navbar() {
               title={isExpanded ? 'Collapse menu' : 'Expand menu'}
             >
               <span
-                className={`w-[3.5px] h-[3.5px] rounded-full bg-zinc-900 transition-all duration-200 ${
-                  isExpanded ? 'scale-125 bg-cyan-600' : ''
-                }`}
+                className={`w-[3.5px] h-[3.5px] rounded-full bg-zinc-900 transition-all duration-200 ${isExpanded ? 'scale-125 bg-cyan-600' : ''
+                  }`}
               />
               <span
-                className={`w-[3.5px] h-[3.5px] rounded-full bg-zinc-900 transition-all duration-200 ${
-                  isExpanded ? 'scale-125 bg-cyan-600' : ''
-                }`}
+                className={`w-[3.5px] h-[3.5px] rounded-full bg-zinc-900 transition-all duration-200 ${isExpanded ? 'scale-125 bg-cyan-600' : ''
+                  }`}
               />
             </button>
           </div>

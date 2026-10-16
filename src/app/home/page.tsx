@@ -29,8 +29,8 @@ export default function HomePage() {
         <BrandStatement />
 
         {/* Section Header leading into Scroll Expand */}
-        <section className="relative w-full bg-white pt-16 sm:pt-24 pb-8 sm:pb-12 text-center px-4">
-          <div className="max-w-4xl mx-auto flex flex-col items-center">
+        <section className="relative w-full bg-white pt-16 sm:pt-24 pb-8 sm:pb-12 text-center px-4 sm:px-6 lg:px-12">
+          <div className="max-w-[1360px] mx-auto flex flex-col items-center">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-100 border border-zinc-200/80 text-zinc-800 text-xs font-medium tracking-wide uppercase mb-4 shadow-xs">
               Interactive Canvas
             </div>
@@ -63,8 +63,7 @@ export default function HomePage() {
             enabled
           >
             <div className="flex flex-col items-center justify-center max-w-3xl mx-auto px-6 text-center select-none">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs font-medium tracking-wide uppercase mb-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs font-small tracking-wide uppercase mb-4">
                 Next-Gen Canvas Engine
               </div>
               <h2 className="text-3xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.035em] text-white leading-[1.08] drop-shadow-md">

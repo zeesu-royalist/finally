@@ -107,7 +107,7 @@ export default function BrandStatement() {
 
       {/* Main Statement - exact 3-line layout scaling smoothly on both laptop and mobile */}
       <div
-        className="w-full max-w-5xl mx-auto px-2.5 sm:px-4 flex flex-col items-center text-center font-normal tracking-[-0.035em] leading-[1.3] text-zinc-950"
+        className="w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-12 flex flex-col items-center text-center font-normal tracking-[-0.035em] leading-[1.3] text-zinc-950"
         style={{ fontSize: 'clamp(1.05rem, 5.3vw, 3.85rem)' }}
       >
         {/* Line 1 */}

@@ -64,7 +64,7 @@ export default function EnterpriseScale() {
   }, []);
 
   return (
-    <section id="enterprise" ref={ref} className="relative w-full bg-white text-zinc-950 py-24 sm:py-32 lg:py-40 px-6 sm:px-12 lg:px-20 border-t border-zinc-100 selection:bg-cyan-500/20 overflow-hidden">
+    <section id="enterprise" ref={ref} className="relative w-full bg-white text-zinc-950 py-24 sm:py-32 lg:py-40 px-4 sm:px-6 lg:px-12 border-t border-zinc-100 selection:bg-cyan-500/20 overflow-hidden">
       <div className="max-w-[1360px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-14 lg:gap-20">
         {/* Left: 6 Icon Cards */}
         <div className="w-full lg:w-[48%] flex justify-center lg:justify-start order-2 lg:order-1">

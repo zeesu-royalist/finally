@@ -32,7 +32,7 @@ export default function CreativeToolkit({
 
     // Cache metrics on mount & resize (zero forced reflow during scroll)
     const measure = () => {
-      maxShift = Math.max(0, track.scrollWidth - window.innerWidth + 10);
+      maxShift = Math.max(0, track.scrollWidth - window.innerWidth + 7);
       totalDistance = Math.max(container.offsetHeight - window.innerHeight, 1);
     };
 

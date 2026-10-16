@@ -162,11 +162,10 @@ export default function FeatureGrid() {
                       key={tab}
                       type="button"
                       onClick={() => setActiveMediaTab(tab)}
-                      className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all duration-200 cursor-pointer ${
-                        isActive
-                          ? 'bg-[#2a2a30] text-white shadow-xs'
-                          : 'text-zinc-400 hover:text-zinc-200'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all duration-200 cursor-pointer ${isActive
+                        ? 'bg-[#2a2a30] text-white shadow-xs'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
                     >
                       {tab}
                     </button>
