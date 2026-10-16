@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { RotateCcw, Play, Pause, Compass, Sparkles, Box, Info, X } from 'lucide-react';
+import { RotateCcw, Play, Pause, Compass, Box, X } from 'lucide-react';
 
 interface Model3DViewerProps {
   modelPath?: string;
@@ -12,6 +12,7 @@ interface Model3DViewerProps {
   isInteractive?: boolean;
   onExitInteractive?: () => void;
   onEnterInteractive?: () => void;
+  onLoaded?: () => void;
 }
 
 function checkWebGLSupport(): boolean {
@@ -35,7 +36,7 @@ export default function Model3DViewer({
   className = '',
   isInteractive = false,
   onExitInteractive,
-  onEnterInteractive,
+  onLoaded,
 }: Model3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +49,11 @@ export default function Model3DViewer({
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const resetCameraRef = useRef<(() => void) | null>(null);
+
+  const onLoadedRef = useRef(onLoaded);
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
 
   const isInteractiveRef = useRef(isInteractive);
   const modelCenterYRef = useRef(0);
@@ -62,11 +68,15 @@ export default function Model3DViewer({
       controlsRef.current.enabled = isInteractive;
       if (!isInteractive) {
         controlsRef.current.autoRotate = true;
-        setAutoRotate(true);
         if (resetCameraRef.current) {
           resetCameraRef.current();
         }
+      } else {
+        controlsRef.current.update();
       }
+    }
+    if (isInteractive && containerRef.current) {
+      containerRef.current.focus();
     }
   }, [isInteractive]);
 
@@ -75,8 +85,11 @@ export default function Model3DViewer({
     if (!container) return;
 
     if (!checkWebGLSupport()) {
-      setWebglError('WebGL is disabled or unavailable in this environment.');
-      setLoading(false);
+      queueMicrotask(() => {
+        setWebglError('WebGL is disabled or unavailable in this environment.');
+        setLoading(false);
+        onLoadedRef.current?.();
+      });
       return;
     }
 
@@ -94,8 +107,11 @@ export default function Model3DViewer({
       });
     } catch (e: unknown) {
       console.warn('WebGL Renderer initialization error:', e);
-      setWebglError('Unable to create WebGL context.');
-      setLoading(false);
+      queueMicrotask(() => {
+        setWebglError('Unable to create WebGL context.');
+        setLoading(false);
+        onLoadedRef.current?.();
+      });
       return;
     }
 
@@ -116,6 +132,9 @@ export default function Model3DViewer({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.outline = 'none';
     container.appendChild(renderer.domElement);
 
     // 2. OrbitControls
@@ -127,6 +146,13 @@ export default function Model3DViewer({
       controls.autoRotateSpeed = 0.8;
       controls.maxPolarAngle = Math.PI / 2 + 0.05;
       controls.enabled = isInteractiveRef.current;
+      // Pause auto-rotation as soon as the user starts manually dragging or interacting
+      controls.addEventListener('start', () => {
+        if (isInteractiveRef.current && controls.autoRotate) {
+          controls.autoRotate = false;
+          setAutoRotate(false);
+        }
+      });
       controlsRef.current = controls;
     } catch (e: unknown) {
       console.warn('OrbitControls error:', e);
@@ -207,6 +233,7 @@ export default function Model3DViewer({
         }
 
         setLoading(false);
+        onLoadedRef.current?.();
       },
       (xhr) => {
         if (xhr.lengthComputable && xhr.total > 0) {
@@ -225,6 +252,7 @@ export default function Model3DViewer({
         console.error('Error loading 3D model:', err);
         setWebglError('Could not load GLB file. Please check file path.');
         setLoading(false);
+        onLoadedRef.current?.();
       }
     );
 
@@ -307,8 +335,9 @@ export default function Model3DViewer({
           When isInteractive: pointer-events-auto allows 360 degree drag, pinch, and zoom! */}
       <div
         ref={containerRef}
-        className={`w-full h-full outline-none transition-all duration-300 ${isInteractive
-          ? 'cursor-grab active:cursor-grabbing pointer-events-auto'
+        tabIndex={isInteractive ? 0 : -1}
+        className={`w-full h-full outline-none select-none ${isInteractive
+          ? 'cursor-grab active:cursor-grabbing pointer-events-auto touch-none [&>canvas]:cursor-grab [&>canvas]:active:cursor-grabbing [&>canvas]:outline-none'
           : 'pointer-events-none'
           }`}
       />
@@ -319,7 +348,7 @@ export default function Model3DViewer({
           <div className="relative mb-5">
             <div className="w-14 h-14 rounded-full border-2 border-zinc-200 border-t-zinc-900 animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-zinc-900 animate-pulse" />
+               <Box className="w-5 h-5 text-zinc-700 group-hover:rotate-12 transition-transform" />
             </div>
           </div>
 
@@ -350,58 +379,70 @@ export default function Model3DViewer({
         </div>
       )}
 
-      {/* Exit 3D Mode Floating Button (Top Center, only visible when isInteractive is active) */}
+      {/* Exit 3D Mode Floating Button (Top Center, minimal, compact) */}
       {isInteractive && onExitInteractive && (
-        <div className="absolute top-20 sm:top-24 left-0 right-0 z-40 flex justify-center pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute top-18 sm:top-22 left-0 right-0 z-40 flex justify-center pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
           <button
             type="button"
             onClick={onExitInteractive}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-zinc-950/90 hover:bg-black text-white text-xs sm:text-sm font-semibold shadow-2xl backdrop-blur-md border border-white/15 hover:border-white/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/90 hover:bg-white text-zinc-800 border border-black/[0.08] shadow-sm hover:shadow backdrop-blur-md text-[12px] font-medium transition-all hover:scale-[1.02] active:scale-95 cursor-pointer group"
           >
-            <X className="w-4 h-4 text-zinc-300" />
-            <span>Exit 3D View</span>
-            <kbd className="hidden sm:inline-block ml-1.5 px-1.5 py-0.5 text-[10px] font-mono bg-white/15 rounded text-zinc-200">
+            <X className="w-3 h-3 text-zinc-500 group-hover:text-zinc-800 transition-colors" />
+            <span className="tracking-tight">Exit 3D View</span>
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono text-zinc-400 bg-black/[0.04] border border-black/[0.04] rounded">
               ESC
             </kbd>
           </button>
         </div>
       )}
 
-      {/* Interactive Controls Toolbar (Bottom Right, only visible when isInteractive is true) */}
+      {/* Interactive Controls Toolbar (Bottom Center on mobile, Bottom Right on desktop - ultra-minimal pill) */}
       {isInteractive && !webglError && !loading && (
-        <div className="absolute bottom-6 right-6 z-30 flex items-center gap-2 animate-in fade-in duration-300 pointer-events-auto">
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/80 text-white text-xs backdrop-blur-md shadow-lg border border-white/10">
-            <Compass className="w-3.5 h-3.5 text-cyan-400 animate-spin [animation-duration:8s]" />
-            <span>Drag to rotate • Scroll to zoom</span>
+        <div className="absolute bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-30 flex items-center p-0.5 bg-white/90 backdrop-blur-md border border-black/[0.08] shadow-sm hover:shadow rounded-full gap-0.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {/* Interaction hint */}
+          <div className="hidden md:flex items-center gap-1.5 pl-2.5 pr-2 py-1 text-[11px] font-medium text-zinc-500 select-none">
+            <Compass className="w-3 h-3 text-zinc-400 animate-spin [animation-duration:12s]" />
+            <span>Drag to rotate</span>
+            <span className="text-zinc-300">•</span>
+            <span>Scroll to zoom</span>
           </div>
 
+          {/* Divider */}
+          <div className="hidden md:block w-px h-3.5 bg-black/[0.08] my-auto mx-0.5" />
+
+          {/* Auto-Rotate Toggle Button */}
           <button
             type="button"
             onClick={handleToggleAutoRotate}
             title={autoRotate ? 'Pause Rotation' : 'Resume Auto Rotation'}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white text-xs backdrop-blur-md shadow-lg border border-white/10 transition-all active:scale-95 cursor-pointer"
+            className={`flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium transition-all cursor-pointer active:scale-95 ${
+              autoRotate
+                ? 'bg-zinc-100 text-zinc-900 border border-black/[0.05]'
+                : 'text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04]'
+            }`}
           >
             {autoRotate ? (
               <>
-                <Pause className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden md:inline">Pause</span>
+                <Pause className="w-3 h-3 text-zinc-700" />
+                <span>Pause</span>
               </>
             ) : (
               <>
-                <Play className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden md:inline">Rotate</span>
+                <Play className="w-3 h-3 text-zinc-700" />
+                <span>Rotate</span>
               </>
             )}
           </button>
 
+          {/* Reset Camera Button */}
           <button
             type="button"
             onClick={handleResetCamera}
             title="Reset Camera View"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white text-xs backdrop-blur-md shadow-lg border border-white/10 transition-all active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] transition-all cursor-pointer active:scale-95"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden md:inline">Reset</span>
+            <RotateCcw className="w-3 h-3 text-zinc-500" />
+            <span>Reset</span>
           </button>
         </div>
       )}
