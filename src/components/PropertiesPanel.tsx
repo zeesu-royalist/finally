@@ -20,6 +20,11 @@ import {
   Gauge,
   AudioWaveform,
   X,
+  Monitor,
+  Smartphone,
+  Square,
+  SplitSquareVertical,
+  Maximize2,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
 
@@ -258,6 +263,54 @@ function SpeedControl({
   );
 }
 
+function AspectRatioSelector({
+  aspectRatio,
+  setAspectRatio,
+}: {
+  aspectRatio: string;
+  setAspectRatio: (r: any) => void;
+}) {
+  return (
+    <div className="p-2.5 rounded-[2px] bg-[#202020] border border-[#303030] space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-[#A0A0A0]">Canvas Aspect Ratio</span>
+        <span className="text-xs font-bold text-white font-mono bg-[#161618] px-1.5 py-0.5 rounded border border-[#333333]">
+          {aspectRatio}
+        </span>
+      </div>
+      <div className="grid grid-cols-5 gap-1 pt-0.5">
+        {[
+          { ratio: '16:9' as const, label: '16:9', desc: 'YouTube', icon: <Monitor className="w-3 h-3" /> },
+          { ratio: '9:16' as const, label: '9:16', desc: 'Reels', icon: <Smartphone className="w-3 h-3" /> },
+          { ratio: '1:1' as const, label: '1:1', desc: 'Square', icon: <Square className="w-3 h-3" /> },
+          { ratio: '4:5' as const, label: '4:5', desc: 'Portrait', icon: <SplitSquareVertical className="w-3 h-3" /> },
+          { ratio: '21:9' as const, label: '21:9', desc: 'Cinema', icon: <Maximize2 className="w-3 h-3" /> },
+        ].map((item) => {
+          const isActive = aspectRatio === item.ratio;
+          return (
+            <button
+              key={item.ratio}
+              onClick={() => setAspectRatio(item.ratio)}
+              className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-[2px] border text-center transition cursor-pointer ${
+                isActive
+                  ? 'bg-white text-black border-white font-bold shadow-xs'
+                  : 'bg-[#181818] hover:bg-[#252525] text-[#A0A0A0] hover:text-[#E6E6E6] border-[#303030]'
+              }`}
+              title={`${item.label} (${item.desc})`}
+            >
+              <span className={isActive ? 'text-black' : 'text-[#8E8E93]'}>{item.icon}</span>
+              <span className="text-[10px] leading-tight font-medium mt-1">{item.label}</span>
+              <span className={`text-[8px] leading-tight ${isActive ? 'text-black/75' : 'text-[#666666]'}`}>
+                {item.desc}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface PropertiesPanelProps {
   isMobileDrawerOpen?: boolean;
   onMobileClose?: () => void;
@@ -284,6 +337,7 @@ export default function PropertiesPanel({
     splitClipAtPlayhead,
     extractAudioFromVideo,
     aspectRatio,
+    setAspectRatio,
     totalDuration,
     activeVideoClip,
   } = useEditor();
@@ -663,10 +717,7 @@ export default function PropertiesPanel({
 
       {/* Project Specs */}
       <div className="space-y-1.5">
-        <div className="p-2 rounded-[2px] bg-[#202020] border border-[#303030] flex items-center justify-between">
-          <span className="text-xs text-[#A0A0A0]">Aspect Ratio</span>
-          <span className="text-xs font-semibold text-white">{aspectRatio}</span>
-        </div>
+        <AspectRatioSelector aspectRatio={aspectRatio} setAspectRatio={setAspectRatio} />
         <div className="p-2 rounded-[2px] bg-[#202020] border border-[#303030] flex items-center justify-between">
           <span className="text-xs text-[#A0A0A0]">Total Sequence Duration</span>
           <span className="text-xs font-mono text-[#E6E6E6]">{totalDuration.toFixed(2)}s</span>

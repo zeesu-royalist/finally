@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Scissors,
   Trash2,
@@ -28,6 +29,11 @@ import {
   Flag,
   X,
   Check,
+  Monitor,
+  Smartphone,
+  Square,
+  SplitSquareVertical,
+  Maximize2,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
 import { FILTER_PRESETS, DEFAULT_ADJUSTMENTS } from '../utils/filterUtils';
@@ -128,6 +134,8 @@ export default function Timeline() {
     addImageClip,
     addAudioClip,
     addTextClip,
+    aspectRatio,
+    setAspectRatio,
   } = useEditor();
 
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -138,8 +146,10 @@ export default function Timeline() {
   const toolbarAudioInputRef = useRef<HTMLInputElement>(null);
 
   const [containerWidth, setContainerWidth] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     const updateWidth = () => {
       if (tracksScrollRef.current) {
         setContainerWidth(tracksScrollRef.current.clientWidth);
@@ -161,7 +171,7 @@ export default function Timeline() {
   const pxPerSec = BASE_PIXELS_PER_SECOND * timelineZoom;
   const timelineContentWidth = Math.max(containerWidth, (totalDuration + 8) * pxPerSec);
 
-  const [activePopover, setActivePopover] = useState<'speed' | 'filter' | null>(null);
+  const [activePopover, setActivePopover] = useState<'speed' | 'filter' | 'ratio' | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<{ x: number; y: number } | null>(null);
 
   const handleOpenSpeed = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -176,6 +186,13 @@ export default function Timeline() {
     const rect = e.currentTarget.getBoundingClientRect();
     setPopoverAnchor({ x: rect.left, y: rect.top });
     setActivePopover((prev) => (prev === 'filter' ? null : 'filter'));
+  };
+
+  const handleOpenRatio = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPopoverAnchor({ x: rect.left, y: rect.top });
+    setActivePopover((prev) => (prev === 'ratio' ? null : 'ratio'));
   };
 
   const handleTracksScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -523,6 +540,28 @@ export default function Timeline() {
             title="Redo (Ctrl+Y / Cmd+Y)"
           >
             <Redo2 className="w-3 h-3" />
+          </button>
+
+          {/* Aspect Ratio Button in Timeline Toolbar */}
+          <div className="h-3.5 w-px bg-[#303030] mx-0.5" />
+
+          <button
+            onClick={handleOpenRatio}
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-[2px] border text-xs font-normal transition cursor-pointer shrink-0 ${
+              activePopover === 'ratio'
+                ? 'border-[#555562] bg-[#2A2A32] text-white shadow-xs'
+                : 'bg-[#222228] hover:bg-[#2A2A32] border-[#383842] text-[#CCCCCC]'
+            }`}
+            title={`Canvas Aspect Ratio: ${aspectRatio}. Click to change`}
+          >
+            {aspectRatio === '16:9' && <Monitor className="w-3 h-3 text-[#8E8E8E]" />}
+            {aspectRatio === '9:16' && <Smartphone className="w-3 h-3 text-[#8E8E8E]" />}
+            {aspectRatio === '1:1' && <Square className="w-3 h-3 text-[#8E8E8E]" />}
+            {aspectRatio === '4:5' && <SplitSquareVertical className="w-3 h-3 text-[#8E8E8E]" />}
+            {aspectRatio === '21:9' && <Maximize2 className="w-3 h-3 text-[#8E8E8E]" />}
+            <span className="font-semibold text-white">{aspectRatio}</span>
+            <span className="text-[10px] text-[#7E7E8E] hidden sm:inline">Ratio</span>
+            <ChevronDown className="w-2.5 h-2.5 text-[#686868]" />
           </button>
         </div>
 
@@ -1077,10 +1116,10 @@ export default function Timeline() {
         </div>
       </div>
 
-      {/* ================= SPEED & LOOK FLOATING UNCLIPPED POPOVER ================= */}
-      {activePopover && (
+      {/* ================= SPEED, LOOK & RATIO FLOATING UNCLIPPED POPOVER ================= */}
+      {isMounted && activePopover && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/40 sm:bg-transparent flex flex-col justify-end sm:justify-start"
+          className="fixed inset-0 z-[100] bg-black/75 sm:bg-transparent backdrop-blur-[2px] sm:backdrop-blur-none flex flex-col justify-end sm:justify-start"
           onClick={() => setActivePopover(null)}
         >
           <div
@@ -1090,12 +1129,14 @@ export default function Timeline() {
                 ? {
                     position: 'fixed',
                     bottom: `${Math.max(10, window.innerHeight - popoverAnchor.y + 6)}px`,
-                    left: `${Math.max(12, Math.min(window.innerWidth - 290, popoverAnchor.x - 50))}px`,
+                    left: `${Math.max(12, Math.min(window.innerWidth - 300, popoverAnchor.x - 50))}px`,
                   }
                 : undefined
             }
-            className="w-full sm:w-72 bg-[#1e1e24] border border-[#3e3e4a] rounded-t-xl sm:rounded-[3px] shadow-2xl p-4 sm:p-3.5 space-y-3 sm:space-y-2.5 pb-12 sm:pb-3.5 pb-safe max-h-[85vh] sm:max-h-[80vh] overflow-y-auto"
+            className="w-full sm:w-80 bg-[#1e1e24] border-t sm:border border-[#3e3e4a] rounded-t-2xl sm:rounded-[3px] shadow-2xl p-4 sm:p-3.5 space-y-3 sm:space-y-2.5 pb-20 sm:pb-3.5 pb-safe max-h-[85vh] sm:max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200"
           >
+            {/* Grab Handle on Mobile */}
+            <div className="w-10 h-1 bg-[#444452] rounded-full mx-auto -mt-1 mb-2 sm:hidden" />
             {/* Speed Popover */}
             {activePopover === 'speed' && (
               <>
@@ -1252,8 +1293,120 @@ export default function Timeline() {
                 )}
               </>
             )}
+
+            {/* Aspect Ratio Popover */}
+            {activePopover === 'ratio' && (
+              <>
+                <div className="flex items-center justify-between border-b border-[#303030] pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                    <Monitor className="w-3.5 h-3.5 text-white" />
+                    <span>Canvas Aspect Ratio</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-white px-1.5 py-0.2 rounded-[2px] bg-[#2a2a35] border border-[#3e3e4a]">
+                      {aspectRatio}
+                    </span>
+                    <button
+                      onClick={() => setActivePopover(null)}
+                      className="p-1 rounded-[2px] text-[#8E8E93] hover:text-white bg-[#25252d] border border-[#383842]"
+                      aria-label="Close aspect ratio popover"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pb-6 sm:pb-0">
+                  {[
+                    {
+                      ratio: '16:9' as const,
+                      label: '16:9',
+                      title: 'YouTube / Widescreen',
+                      desc: 'Horizontal format (1920 × 1080)',
+                      shapeW: 'w-6',
+                      shapeH: 'h-3.5',
+                    },
+                    {
+                      ratio: '9:16' as const,
+                      label: '9:16',
+                      title: 'TikTok / Reels / Shorts',
+                      desc: 'Vertical mobile format (1080 × 1920)',
+                      shapeW: 'w-3.5',
+                      shapeH: 'h-6',
+                    },
+                    {
+                      ratio: '1:1' as const,
+                      label: '1:1',
+                      title: 'Instagram / Square Post',
+                      desc: 'Classic square post (1080 × 1080)',
+                      shapeW: 'w-4.5',
+                      shapeH: 'h-4.5',
+                    },
+                    {
+                      ratio: '4:5' as const,
+                      label: '4:5',
+                      title: 'Portrait / Feed',
+                      desc: 'Tall social post (1080 × 1350)',
+                      shapeW: 'w-4',
+                      shapeH: 'h-5',
+                    },
+                    {
+                      ratio: '21:9' as const,
+                      label: '21:9',
+                      title: 'Cinematic Ultrawide',
+                      desc: 'Anamorphic widescreen (2560 × 1080)',
+                      shapeW: 'w-7',
+                      shapeH: 'h-3',
+                    },
+                  ].map((item) => {
+                    const isActive = aspectRatio === item.ratio;
+                    return (
+                      <button
+                        key={item.ratio}
+                        onClick={() => {
+                          setAspectRatio(item.ratio);
+                          setActivePopover(null);
+                        }}
+                        className={`w-full p-2.5 sm:p-2 rounded-[2px] border text-left transition flex items-center justify-between cursor-pointer active:scale-[0.99] ${
+                          isActive
+                            ? 'border-white bg-[#2A2A38] text-white font-medium shadow-sm'
+                            : 'border-[#2d2d38] bg-[#16161c] text-[#A0A0AA] hover:text-white hover:border-[#383842] active:bg-[#202028]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-[2px] bg-[#20202a] border border-[#333340] flex items-center justify-center shrink-0">
+                            <div
+                              className={`${item.shapeW} ${item.shapeH} rounded-[1px] border-2 transition-colors ${
+                                isActive ? 'border-white bg-white/20' : 'border-[#666675] bg-[#666675]/10'
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-white">{item.label}</span>
+                              <span className="text-[10px] text-[#A0A0AA]">{item.title}</span>
+                            </div>
+                            <div className="text-[10px] text-[#71717A] mt-0.5">{item.desc}</div>
+                          </div>
+                        </div>
+
+                        {isActive ? (
+                          <div className="w-4 h-4 rounded-full bg-white text-black flex items-center justify-center shrink-0 shadow-xs">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-[#3a3a48] shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

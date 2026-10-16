@@ -226,7 +226,6 @@ export default function ExportModal() {
               </div>
 
               <div className="p-2 rounded-[2px] bg-[#202020] border border-[#303030] text-xs text-[#777777] flex items-start gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#D4D4D8] shrink-0 mt-0.5" />
                 <p className="text-[10px] leading-relaxed text-[#A0A0A0]">
                   Sequence export captures all video adjustments, color grading, overlay titles, and audio track mixes.
                 </p>
