@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import type * as THREE_TYPE from 'three';
+import type { OrbitControls as OrbitControlsType } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RotateCcw, Play, Pause, Compass, Box, X } from 'lucide-react';
 
 interface Model3DViewerProps {
@@ -14,6 +13,9 @@ interface Model3DViewerProps {
   onEnterInteractive?: () => void;
   onLoaded?: () => void;
 }
+
+// Global in-memory cache so subsequent component mounts load instantaneously without network or cache lookups
+const memoryBufferCache = new Map<string, ArrayBuffer>();
 
 function checkWebGLSupport(): boolean {
   if (typeof window === 'undefined') return false;
@@ -31,6 +33,100 @@ function checkWebGLSupport(): boolean {
   }
 }
 
+/**
+ * Downloads model with chunk streaming to track progress and caches in CacheStorage
+ * for instant future page loads without re-downloading.
+ */
+async function loadModelBufferWithCache(
+  url: string,
+  onProgress: (loaded: number, total: number) => void,
+  signal: AbortSignal
+): Promise<ArrayBuffer> {
+  // 1. In-memory cache hit
+  if (memoryBufferCache.has(url)) {
+    const buffer = memoryBufferCache.get(url)!;
+    onProgress(buffer.byteLength, buffer.byteLength);
+    return buffer;
+  }
+
+  // 2. Browser Cache Storage hit
+  const cacheName = 'video-editor-3d-model-cache-v1';
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try {
+      const cache = await window.caches.open(cacheName);
+      const cached = await cache.match(url);
+      if (cached) {
+        const buffer = await cached.arrayBuffer();
+        memoryBufferCache.set(url, buffer);
+        onProgress(buffer.byteLength, buffer.byteLength);
+        return buffer;
+      }
+    } catch {
+      // Continue to network fetch if CacheStorage is unavailable or restricted
+    }
+  }
+
+  // 3. Network fetch with streaming progress
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`Failed to load model: ${response.status} ${response.statusText}`);
+  }
+
+  const contentLength = response.headers.get('content-length');
+  const total = contentLength ? parseInt(contentLength, 10) : 36700160; // 35 MB estimated fallback
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const buffer = await response.arrayBuffer();
+    memoryBufferCache.set(url, buffer);
+    onProgress(buffer.byteLength, buffer.byteLength);
+    return buffer;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      loaded += value.length;
+      onProgress(loaded, total);
+    }
+  }
+
+  const completeData = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    completeData.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const finalBuffer = completeData.buffer;
+  memoryBufferCache.set(url, finalBuffer);
+
+  // Cache in background for instant loads on subsequent visits
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try {
+      const cache = await window.caches.open(cacheName);
+      await cache.put(
+        url,
+        new Response(finalBuffer, {
+          headers: {
+            'content-type': 'model/gltf-binary',
+            'content-length': loaded.toString(),
+          },
+        })
+      );
+    } catch {
+      // Ignore cache storage errors (e.g. quota limits)
+    }
+  }
+
+  return finalBuffer;
+}
+
 export default function Model3DViewer({
   modelPath = '/3d modal/baker_and_the_bridge.glb',
   className = '',
@@ -46,8 +142,8 @@ export default function Model3DViewer({
   const [autoRotate, setAutoRotate] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
 
-  const controlsRef = useRef<OrbitControls | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControlsType | null>(null);
+  const cameraRef = useRef<THREE_TYPE.PerspectiveCamera | null>(null);
   const resetCameraRef = useRef<(() => void) | null>(null);
 
   const onLoadedRef = useRef(onLoaded);
@@ -58,8 +154,8 @@ export default function Model3DViewer({
   const isInteractiveRef = useRef(isInteractive);
   const modelCenterYRef = useRef(0);
   const modelOverviewYRef = useRef(0);
-  const initialCamPosRef = useRef(new THREE.Vector3(20, 14, 25));
-  const initialTargetRef = useRef(new THREE.Vector3(0, 0, 0));
+  const initialCamPosRef = useRef<{ x: number; y: number; z: number }>({ x: 20, y: 14, z: 25 });
+  const initialTargetRef = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
 
   // Sync isInteractive ref and update OrbitControls state without re-creating scene
   useEffect(() => {
@@ -95,170 +191,50 @@ export default function Model3DViewer({
 
     let animationFrameId: number;
     let isDisposed = false;
-    let renderer: THREE.WebGLRenderer;
-    let controls: OrbitControls;
+    let isAnimationRunning = false;
+    const abortController = new AbortController();
 
-    try {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false,
-        failIfMajorPerformanceCaveat: false,
-        powerPreference: 'default',
-      });
-    } catch (e: unknown) {
-      console.warn('WebGL Renderer initialization error:', e);
-      queueMicrotask(() => {
-        setWebglError('Unable to create WebGL context.');
-        setLoading(false);
-        onLoadedRef.current?.();
-      });
-      return;
-    }
+    let renderer: THREE_TYPE.WebGLRenderer | null = null;
+    let controls: OrbitControlsType | null = null;
+    let scene: THREE_TYPE.Scene | null = null;
+    let camera: THREE_TYPE.PerspectiveCamera | null = null;
+    let dracoLoader: { dispose: () => void } | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let intersectionObserver: IntersectionObserver | null = null;
 
-    // 1. Scene & Camera setup with pure white opaque background for mix-blend-mode: exclusion
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
+    const startAnimation = () => {
+      if (isAnimationRunning || isDisposed) return;
+      isAnimationRunning = true;
+      animate();
+    };
 
-    const width = container.clientWidth || window.innerWidth;
-    const height = container.clientHeight || window.innerHeight;
-
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
-    camera.position.set(20, 14, 25);
-    cameraRef.current = camera;
-
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(width, height);
-    renderer.setClearColor(0xffffff, 1.0);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.style.display = 'block';
-    renderer.domElement.style.outline = 'none';
-    container.appendChild(renderer.domElement);
-
-    // 2. OrbitControls
-    try {
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.8;
-      controls.maxPolarAngle = Math.PI / 2 + 0.05;
-      controls.enabled = isInteractiveRef.current;
-      // Pause auto-rotation as soon as the user starts manually dragging or interacting
-      controls.addEventListener('start', () => {
-        if (isInteractiveRef.current && controls.autoRotate) {
-          controls.autoRotate = false;
-          setAutoRotate(false);
-        }
-      });
-      controlsRef.current = controls;
-    } catch (e: unknown) {
-      console.warn('OrbitControls error:', e);
-    }
-
-    // 3. Balanced high-contrast lighting for crisp exclusion inversion
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
-    scene.add(ambientLight);
-
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.25);
-    mainLight.position.set(25, 35, 25);
-    scene.add(mainLight);
-
-    const cyanRimLight = new THREE.DirectionalLight(0x38bdf8, 1.1);
-    cyanRimLight.position.set(-25, 15, -20);
-    scene.add(cyanRimLight);
-
-    const purpleBackLight = new THREE.DirectionalLight(0xa855f7, 0.8);
-    purpleBackLight.position.set(0, -10, -25);
-    scene.add(purpleBackLight);
-
-    // Camera reset positions
-    resetCameraRef.current = () => {
-      camera.position.copy(initialCamPosRef.current);
-      if (controlsRef.current) {
-        const targetY = isInteractiveRef.current
-          ? modelCenterYRef.current
-          : modelOverviewYRef.current;
-        controlsRef.current.target.set(0, targetY, 0);
-        controlsRef.current.update();
+    const stopAnimation = () => {
+      isAnimationRunning = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
       }
     };
 
-    // 4. Load GLB Model
-    const loader = new GLTFLoader();
-    const encodedPath = encodeURI(modelPath);
+    const animate = () => {
+      if (!isAnimationRunning || isDisposed) return;
+      animationFrameId = requestAnimationFrame(animate);
 
-    loader.load(
-      encodedPath,
-      (gltf) => {
-        if (isDisposed) return;
-
-        const model = gltf.scene;
-
-        // Auto-center and fit model precisely
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-
-        // Center model at origin
-        model.position.x = -center.x;
-        model.position.y = -box.min.y;
-        model.position.z = -center.z;
-
-        scene.add(model);
-
-        // Frame camera significantly closer so the 3D model is much bigger and more prominent
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fitDistance = maxDim * 0.85;
-
-        modelCenterYRef.current = size.y * 0.42;
-        modelOverviewYRef.current = size.y * 0.42;
-
-        initialCamPosRef.current.set(fitDistance * 0.82, fitDistance * 0.48, fitDistance * 0.98);
-        initialTargetRef.current.set(0, size.y * 0.42, 0);
-
-        camera.position.copy(initialCamPosRef.current);
-        camera.lookAt(initialTargetRef.current);
-
-        if (controls) {
-          controls.target.copy(initialTargetRef.current);
-          controls.minDistance = maxDim * 0.2;
-          controls.maxDistance = maxDim * 3.5;
-          controls.enabled = isInteractiveRef.current;
-          controls.autoRotate = true;
-          controls.autoRotateSpeed = 0.8;
-          controls.update();
-        }
-
-        setLoading(false);
-        onLoadedRef.current?.();
-      },
-      (xhr) => {
-        if (xhr.lengthComputable && xhr.total > 0) {
-          const pct = Math.round((xhr.loaded / xhr.total) * 100);
-          setProgress(pct);
-          setDownloadedMb((xhr.loaded / (1024 * 1024)).toFixed(1));
-          setTotalMb((xhr.total / (1024 * 1024)).toFixed(1));
-        } else if (xhr.loaded) {
-          const mb = (xhr.loaded / (1024 * 1024)).toFixed(1);
-          setDownloadedMb(mb);
-          const estPct = Math.min(99, Math.round((xhr.loaded / (35.0 * 1024 * 1024)) * 100));
-          setProgress(estPct);
-        }
-      },
-      (err) => {
-        console.error('Error loading 3D model:', err);
-        setWebglError('Could not load GLB file. Please check file path.');
-        setLoading(false);
-        onLoadedRef.current?.();
+      if (controls) {
+        // Smoothly interpolate target Y between overview and interactive mode
+        const targetY = isInteractiveRef.current
+          ? modelCenterYRef.current
+          : modelOverviewYRef.current;
+        controls.target.y += (targetY - controls.target.y) * 0.05;
+        controls.update();
       }
-    );
 
-    // 5. Handle Resize
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+    };
+
     const handleResize = () => {
-      if (!container) return;
+      if (!container || !renderer || !camera) return;
       const newWidth = container.clientWidth;
       const newHeight = container.clientHeight;
       if (newWidth > 0 && newHeight > 0) {
@@ -268,49 +244,303 @@ export default function Model3DViewer({
       }
     };
 
-    const resizeObserver = new ResizeObserver(handleResize);
-    resizeObserver.observe(container);
-    window.addEventListener('resize', handleResize);
-
-    // 6. Animation loop with smooth target interpolation
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-      if (controls) {
-        // Smoothly interpolate target Y between overview and interactive mode
-        const targetY = isInteractiveRef.current
-          ? modelCenterYRef.current
-          : modelOverviewYRef.current;
-        controls.target.y += (targetY - controls.target.y) * 0.05;
-        controls.update();
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAnimation();
+      } else if (container) {
+        const rect = container.getBoundingClientRect();
+        if (rect.bottom > 0 && rect.top < window.innerHeight) {
+          startAnimation();
+        }
       }
-      renderer.render(scene, camera);
     };
-    animate();
 
-    // 7. Cleanup
+    // Asynchronously load Three.js & dependencies to keep main bundle ultra lightweight
+    (async () => {
+      try {
+        const [
+          THREE,
+          { GLTFLoader },
+          { OrbitControls },
+          { DRACOLoader },
+        ] = await Promise.all([
+          import('three'),
+          import('three/examples/jsm/loaders/GLTFLoader.js'),
+          import('three/examples/jsm/controls/OrbitControls.js'),
+          import('three/examples/jsm/loaders/DRACOLoader.js'),
+        ]);
+
+        if (isDisposed || !container) return;
+
+        // 1. Scene & Camera setup with pure white opaque background for mix-blend-mode: exclusion
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        const width = container.clientWidth || window.innerWidth;
+        const height = container.clientHeight || window.innerHeight;
+
+        camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
+        camera.position.set(20, 14, 25);
+        cameraRef.current = camera;
+
+        renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: false,
+          failIfMajorPerformanceCaveat: false,
+          powerPreference: 'high-performance',
+        });
+
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(width, height);
+        renderer.setClearColor(0xffffff, 1.0);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.domElement.style.touchAction = 'none';
+        renderer.domElement.style.display = 'block';
+        renderer.domElement.style.outline = 'none';
+        container.appendChild(renderer.domElement);
+
+        // 2. OrbitControls
+        try {
+          controls = new OrbitControls(camera, renderer.domElement);
+          controls.enableDamping = true;
+          controls.dampingFactor = 0.05;
+          controls.autoRotate = true;
+          controls.autoRotateSpeed = 0.8;
+          controls.maxPolarAngle = Math.PI / 2 + 0.05;
+          controls.enabled = isInteractiveRef.current;
+          // Pause auto-rotation as soon as the user starts manually dragging or interacting
+          controls.addEventListener('start', () => {
+            if (isInteractiveRef.current && controls && controls.autoRotate) {
+              controls.autoRotate = false;
+              setAutoRotate(false);
+            }
+          });
+          controlsRef.current = controls;
+        } catch (e: unknown) {
+          console.warn('OrbitControls error:', e);
+        }
+
+        // 3. Balanced high-contrast lighting for crisp exclusion inversion
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.25);
+        mainLight.position.set(25, 35, 25);
+        scene.add(mainLight);
+
+        const cyanRimLight = new THREE.DirectionalLight(0x38bdf8, 1.1);
+        cyanRimLight.position.set(-25, 15, -20);
+        scene.add(cyanRimLight);
+
+        const purpleBackLight = new THREE.DirectionalLight(0xa855f7, 0.8);
+        purpleBackLight.position.set(0, -10, -25);
+        scene.add(purpleBackLight);
+
+        // Camera reset function
+        resetCameraRef.current = () => {
+          if (!camera) return;
+          camera.position.set(
+            initialCamPosRef.current.x,
+            initialCamPosRef.current.y,
+            initialCamPosRef.current.z
+          );
+          if (controlsRef.current) {
+            const targetY = isInteractiveRef.current
+              ? modelCenterYRef.current
+              : modelOverviewYRef.current;
+            controlsRef.current.target.set(0, targetY, 0);
+            controlsRef.current.update();
+          }
+        };
+
+        // 4. Load GLB Model with caching & progress tracking
+        const loader = new GLTFLoader();
+        const draco = new DRACOLoader();
+        draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+        loader.setDRACOLoader(draco);
+        dracoLoader = draco;
+
+        const encodedPath = encodeURI(modelPath);
+
+        const buffer = await loadModelBufferWithCache(
+          encodedPath,
+          (loadedBytes, totalBytes) => {
+            if (isDisposed) return;
+            if (totalBytes > 0) {
+              const pct = Math.min(100, Math.round((loadedBytes / totalBytes) * 100));
+              setProgress(pct);
+              setDownloadedMb((loadedBytes / (1024 * 1024)).toFixed(1));
+              setTotalMb((totalBytes / (1024 * 1024)).toFixed(1));
+            } else if (loadedBytes) {
+              const mb = (loadedBytes / (1024 * 1024)).toFixed(1);
+              setDownloadedMb(mb);
+              const estPct = Math.min(99, Math.round((loadedBytes / (35.0 * 1024 * 1024)) * 100));
+              setProgress(estPct);
+            }
+          },
+          abortController.signal
+        );
+
+        if (isDisposed || !scene || !camera) return;
+
+        loader.parse(
+          buffer,
+          '',
+          (gltf) => {
+            if (isDisposed || !scene || !camera) return;
+
+            const model = gltf.scene;
+
+            // Auto-center and fit model precisely
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+
+            // Center model at origin
+            model.position.x = -center.x;
+            model.position.y = -box.min.y;
+            model.position.z = -center.z;
+
+            scene.add(model);
+
+            // Frame camera significantly closer so the 3D model is much bigger and more prominent
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fitDistance = maxDim * 0.85;
+
+            modelCenterYRef.current = size.y * 0.42;
+            modelOverviewYRef.current = size.y * 0.42;
+
+            initialCamPosRef.current = {
+              x: fitDistance * 0.82,
+              y: fitDistance * 0.48,
+              z: fitDistance * 0.98,
+            };
+            initialTargetRef.current = {
+              x: 0,
+              y: size.y * 0.42,
+              z: 0,
+            };
+
+            camera.position.set(
+              initialCamPosRef.current.x,
+              initialCamPosRef.current.y,
+              initialCamPosRef.current.z
+            );
+            camera.lookAt(
+              initialTargetRef.current.x,
+              initialTargetRef.current.y,
+              initialTargetRef.current.z
+            );
+
+            if (controls) {
+              controls.target.set(
+                initialTargetRef.current.x,
+                initialTargetRef.current.y,
+                initialTargetRef.current.z
+              );
+              controls.minDistance = maxDim * 0.2;
+              controls.maxDistance = maxDim * 3.5;
+              controls.enabled = isInteractiveRef.current;
+              controls.autoRotate = true;
+              controls.autoRotateSpeed = 0.8;
+              controls.update();
+            }
+
+            setLoading(false);
+            onLoadedRef.current?.();
+          },
+          (parseError) => {
+            console.error('Error parsing GLB buffer:', parseError);
+            if (!isDisposed) {
+              setWebglError('Could not parse GLB file. Please check file format.');
+              setLoading(false);
+              onLoadedRef.current?.();
+            }
+          }
+        );
+
+        // 5. Handle Resize & Visibility
+        resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(container);
+        window.addEventListener('resize', handleResize);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // 6. IntersectionObserver: Stop animation loop when scrolled offscreen to eliminate CPU/GPU drain
+        if (typeof IntersectionObserver !== 'undefined') {
+          intersectionObserver = new IntersectionObserver(
+            ([entry]) => {
+              if (entry.isIntersecting) {
+                startAnimation();
+              } else {
+                stopAnimation();
+              }
+            },
+            { threshold: 0.01 }
+          );
+          intersectionObserver.observe(container);
+        }
+
+        // Start initial animation
+        startAnimation();
+      } catch (e: unknown) {
+        if (isDisposed) return;
+        console.error('Model3DViewer initialization error:', e);
+        setWebglError('Unable to initialize 3D viewer.');
+        setLoading(false);
+        onLoadedRef.current?.();
+      }
+    })();
+
+    // 7. Thorough Cleanup (releases WebGL context & texture VRAM to prevent leaks)
     return () => {
       isDisposed = true;
-      cancelAnimationFrame(animationFrameId);
-      resizeObserver.disconnect();
+      abortController.abort();
+      stopAnimation();
+
+      if (resizeObserver) resizeObserver.disconnect();
+      if (intersectionObserver) intersectionObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
 
       if (container && renderer?.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
 
-      controls?.dispose();
-      renderer?.dispose();
+      try {
+        dracoLoader?.dispose();
+        controls?.dispose();
 
-      scene.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry?.dispose();
-          if (Array.isArray(child.material)) {
-            child.material.forEach((m) => m.dispose());
-          } else if (child.material) {
-            child.material.dispose();
-          }
+        if (scene) {
+          scene.traverse((child) => {
+            if ('geometry' in child && (child as THREE_TYPE.Mesh).geometry) {
+              (child as THREE_TYPE.Mesh).geometry.dispose();
+            }
+            if ('material' in child) {
+              const mesh = child as THREE_TYPE.Mesh;
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              materials.forEach((mat) => {
+                if (!mat) return;
+                for (const key of Object.keys(mat)) {
+                  const val = (mat as unknown as Record<string, unknown>)[key];
+                  if (val && typeof val === 'object' && typeof (val as { dispose?: () => void }).dispose === 'function') {
+                    (val as { dispose: () => void }).dispose();
+                  }
+                }
+                mat.dispose();
+              });
+            }
+          });
         }
-      });
+
+        if (renderer) {
+          renderer.dispose();
+          renderer.forceContextLoss();
+        }
+      } catch (cleanupError) {
+        console.warn('Model3DViewer cleanup warning:', cleanupError);
+      }
     };
   }, [modelPath]);
 
@@ -348,7 +578,7 @@ export default function Model3DViewer({
           <div className="relative mb-5">
             <div className="w-14 h-14 rounded-full border-2 border-zinc-200 border-t-zinc-900 animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-               <Box className="w-5 h-5 text-zinc-700 group-hover:rotate-12 transition-transform" />
+              <Box className="w-5 h-5 text-zinc-700 group-hover:rotate-12 transition-transform" />
             </div>
           </div>
 
