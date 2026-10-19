@@ -1,21 +1,57 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface CreativeToolkitProps {
   videoSrc?: string;
   gifSrc?: string;
   imageSrc?: string;
+  fallbackImage?: string;
 }
 
+const DEFAULT_FALLBACK_IMAGE = 'https://cdn.mos.cms.futurecdn.net/6zd7pLoo4uwDjXvQSCKUrk.jpg';
+
 export default function CreativeToolkit({
-  videoSrc,
-  gifSrc = 'https://cdn.mos.cms.futurecdn.net/6zd7pLoo4uwDjXvQSCKUrk.jpg',
+  videoSrc = '/videos/video-ui-demo.mp4',
+  gifSrc,
   imageSrc = 'https://cdn.dribbble.com/userupload/18228000/file/original-ba0875b0250403966042e1bc9f03add7.png',
+  fallbackImage = DEFAULT_FALLBACK_IMAGE,
 }: CreativeToolkitProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+
+  // If gifSrc happens to be a video file or videoSrc is present, resolve as video
+  const isVideoFile = (src?: string) => Boolean(src && /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(src));
+  const effectiveVideoSrc = videoSrc || (isVideoFile(gifSrc) ? gifSrc : undefined);
+  const effectiveFallbackImage = fallbackImage || DEFAULT_FALLBACK_IMAGE;
+
+  // Reliable browser autoplay & loop enforcement
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !effectiveVideoSrc) return;
+
+    video.defaultMuted = true;
+    video.muted = true;
+    video.loop = true;
+
+    if (video.readyState >= 3) {
+      setIsVideoReady(true);
+    }
+
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => setIsVideoReady(true))
+        .catch(() => {
+          // Autoplay was blocked or postponed by browser
+        });
+    }
+  }, [effectiveVideoSrc]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -90,25 +126,44 @@ export default function CreativeToolkit({
             </h2>
           </div>
 
-          {/* Main Video / GIF Container */}
-          <div className="w-[760px] sm:w-[980px] lg:w-[1180px] h-[440px] sm:h-[530px] lg:h-[600px] rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[#070709] border border-white/10 shadow-2xl relative shrink-0 select-none group transform-gpu">
-            {videoSrc ? (
+          {/* Main Video / Fallback Container */}
+          <div
+            className="w-[760px] sm:w-[980px] lg:w-[1180px] h-[440px] sm:h-[530px] lg:h-[600px] rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[#070709] border border-white/10 shadow-2xl relative shrink-0 select-none transform-gpu"
+          >
+            {/* Fallback Image shown before/during video load, or if video is slow/fails */}
+            <img
+              src={effectiveFallbackImage}
+              alt="Video preview placeholder"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 z-10 ${
+                isVideoReady && !videoError ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              }`}
+            />
+
+            {effectiveVideoSrc && (
               <video
-                src={videoSrc}
+                ref={videoRef}
+                src={effectiveVideoSrc}
+                poster={effectiveFallbackImage}
                 autoPlay
                 loop
                 muted
                 playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <img
-                src={gifSrc}
-                alt="Creative video timeline preview"
-                className="w-full h-full object-cover"
+                preload="auto"
+                className="w-full h-full object-cover relative z-0"
+                onLoadedData={() => setIsVideoReady(true)}
+                onCanPlay={() => setIsVideoReady(true)}
+                onPlaying={() => setIsVideoReady(true)}
+                onError={() => {
+                  setVideoError(true);
+                  setIsVideoReady(false);
+                }}
+                onEnded={() => {
+                  videoRef.current?.play().catch(() => {});
+                }}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none" />
+
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none z-20" />
           </div>
 
           {/* Companion Image */}
