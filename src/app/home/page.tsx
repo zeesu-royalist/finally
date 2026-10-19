@@ -29,16 +29,17 @@ export default function HomePage() {
         <BrandStatement />
 
         {/* Section Header leading into Scroll Expand */}
-        <section className="relative w-full bg-white pt-16 sm:pt-24 pb-8 sm:pb-12 text-center px-4 sm:px-6 lg:px-12">
+        {/* Section Header leading into Scroll Expand */}
+        <section id="workflow" className="relative w-full bg-white pt-16 sm:pt-24 pb-8 sm:pb-12 text-center px-4 sm:px-6 lg:px-12">
           <div className="max-w-[1360px] mx-auto flex flex-col items-center">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-100 border border-zinc-200/80 text-zinc-800 text-xs font-medium tracking-wide uppercase mb-4 shadow-xs">
-              Interactive Canvas
+              Cinematic Timeline
             </div>
             <h2 className="text-3xl sm:text-5xl md:text-6xl font-medium tracking-[-0.035em] text-zinc-950 leading-[1.12]">
-              Expand your creative horizon
+              Streamline your video workflow
             </h2>
             <p className="mt-4 text-base sm:text-lg text-zinc-600 max-w-xl font-normal leading-relaxed">
-              Scroll down to watch the canvas open up seamlessly into a full-bleed cinematic production stage.
+              Scroll down to watch our multi-track timeline open into a full-bleed video production studio.
             </p>
           </div>
         </section>
@@ -46,10 +47,10 @@ export default function HomePage() {
         {/* Scroll Expand Showcase Section */}
         <section className="relative w-full bg-white">
           <ScrollExpand
-            src="/hero.jpg"
-            alt="Product hero"
-            title="Built to scale"
-            scrollHint="Scroll inside the frame"
+            src="/images/hero.jpg"
+            alt="Video editor timeline showcase"
+            title="Built for Creators"
+            scrollHint="Scroll to expand editor"
             useWindowScroll
             startWidth={44}
             startHeight={58}
@@ -64,13 +65,13 @@ export default function HomePage() {
           >
             <div className="flex flex-col items-center justify-center max-w-3xl mx-auto px-6 text-center select-none">
               <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white text-xs font-small tracking-wide uppercase mb-4">
-                Next-Gen Canvas Engine
+                Next-Gen Video Engine
               </div>
               <h2 className="text-3xl sm:text-5xl md:text-6xl font-semibold tracking-[-0.035em] text-white leading-[1.08] drop-shadow-md">
-                Every pixel, everywhere
+                Precision in every frame
               </h2>
               <p className="mt-3 sm:mt-4 text-base sm:text-lg text-white/85 max-w-xl font-normal leading-relaxed drop-shadow">
-                The frame opens up as you scroll and hands the whole stage to your media.
+                Seamlessly arrange multi-layer footage, audio waveforms, and motion titles with fluid playback.
               </p>
               <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
                 <Link
@@ -80,10 +81,10 @@ export default function HomePage() {
                   Open Video Editor
                 </Link>
                 <a
-                  href="#workflow"
+                  href="#features"
                   className="h-11 sm:h-12 px-6 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/25 text-white font-medium text-sm flex items-center transition-all active:scale-95 cursor-pointer"
                 >
-                  Learn More
+                  Explore Tools
                 </a>
               </div>
             </div>

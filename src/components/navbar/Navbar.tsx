@@ -12,7 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Features', href: '#features' },
   { label: '3D Showcase', href: '#interactive-model' },
   { label: 'Workflow', href: '#workflow' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'Enterprise', href: '#enterprise' },
 ];
 
 export default function Navbar() {
@@ -175,20 +175,20 @@ export default function Navbar() {
 
         {/* ================= RIGHT PILL: Login + Try for free ================= */}
         <div className="pointer-events-auto flex items-center h-[46px] sm:h-[50px] gap-1.5 sm:gap-2.5 bg-[#f0f0f3] hover:bg-[#f5f5f7] border border-black/[0.06] shadow-md shadow-black/5 rounded-2xl pl-3 sm:pl-4 pr-1 sm:pr-1.5 transition-all duration-300 ease-out">
-          {/* Login Link */}
+          {/* Studio Link */}
           <Link
             href="/"
             className="px-1.5 sm:px-2 text-xs sm:text-sm font-medium text-zinc-800 hover:text-black transition-colors whitespace-nowrap"
           >
-            Login
+            Studio
           </Link>
 
-          {/* Try for free Pill Button */}
+          {/* Open Editor Pill Button */}
           <Link
             href="/"
             className="h-[34px] sm:h-[38px] inline-flex items-center justify-center px-3 sm:px-4 rounded-xl bg-[#1c1c1f] hover:bg-black text-white text-xs sm:text-sm font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
-            Try for free
+            Open Editor
           </Link>
         </div>
 

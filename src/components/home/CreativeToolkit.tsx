@@ -83,10 +83,10 @@ export default function CreativeToolkit({
           {/* Typography Headline */}
           <div className="w-[300px] sm:w-[400px] lg:w-[480px] shrink-0 select-none flex flex-col justify-center">
             <span className="font-mono text-xs sm:text-[13px] text-zinc-400 font-normal tracking-[0.03em] mb-4">
-              Your new creative toolkit
+              Pro video editing toolkit
             </span>
             <h2 className="text-3xl sm:text-5xl lg:text-[3.1rem] font-medium tracking-[-0.035em] text-zinc-950 leading-[1.12]">
-              Customize and save your favorite blocks so your team never starts from scratch again.
+              Arrange tracks, sync audio beats, and craft high-impact video edits in record time.
             </h2>
           </div>
 
@@ -104,7 +104,7 @@ export default function CreativeToolkit({
             ) : (
               <img
                 src={gifSrc}
-                alt="Creative toolkit video preview"
+                alt="Creative video timeline preview"
                 className="w-full h-full object-cover"
               />
             )}
@@ -115,7 +115,7 @@ export default function CreativeToolkit({
           <div className="w-[280px] sm:w-[360px] lg:w-[440px] h-[440px] sm:h-[530px] lg:h-[600px] rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[#070709] border border-black/10 shadow-2xl relative shrink-0 select-none group transform-gpu">
             <img
               src={imageSrc}
-              alt="Creative toolkit companion"
+              alt="Video editing tools and panels"
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/5 pointer-events-none" />

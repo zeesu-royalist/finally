@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { ArrowUp, Scan } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowUp } from 'lucide-react';
 
 export default function Footer() {
   const scrollToTop = () => {
@@ -13,7 +14,7 @@ export default function Footer() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const marqueeText = 'aperios design®';
+  const marqueeText = 'finally video studio®';
 
   return (
     <footer className="relative w-full h-screen min-h-[600px] max-h-screen bg-[#09090b] text-white overflow-hidden select-none border-t border-zinc-800/80 flex flex-col justify-between">
@@ -35,33 +36,33 @@ export default function Footer() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 items-center">
             {/* Column 1 */}
             <div className="flex flex-col gap-2 sm:gap-2.5">
-              <a
-                href="#work"
+              <Link
+                href="/"
                 className="text-base sm:text-lg text-zinc-300 hover:text-white transition-colors duration-200 font-sans tracking-tight w-fit cursor-pointer"
               >
-                Work
-              </a>
+                Video Studio
+              </Link>
               <a
-                href="#studio"
+                href="#features"
                 className="text-base sm:text-lg text-zinc-300 hover:text-white transition-colors duration-200 font-sans tracking-tight w-fit cursor-pointer"
               >
-                Studio
+                Features
               </a>
             </div>
 
             {/* Column 2 */}
             <div className="flex flex-col gap-2 sm:gap-2.5">
               <a
-                href="#archive"
+                href="#workflow"
                 className="text-base sm:text-lg text-zinc-300 hover:text-white transition-colors duration-200 font-sans tracking-tight w-fit cursor-pointer"
               >
-                Archive
+                Timeline
               </a>
               <a
-                href="#journal"
+                href="#enterprise"
                 className="text-base sm:text-lg text-zinc-300 hover:text-white transition-colors duration-200 font-sans tracking-tight w-fit cursor-pointer"
               >
-                Journal
+                Enterprise
               </a>
             </div>
 
@@ -88,10 +89,10 @@ export default function Footer() {
             {/* Column 4: Right-Aligned Direct Studio Contact */}
             <div className="flex flex-col justify-center md:items-end col-span-2 md:col-span-1">
               <a
-                href="mailto:studio@aperios-design.co.uk"
+                href="mailto:support@finallyvideo.com"
                 className="text-base sm:text-lg text-zinc-300 hover:text-white transition-colors duration-200 font-sans tracking-tight cursor-pointer"
               >
-                studio@aperios-design.co.uk
+                support@finallyvideo.com
               </a>
             </div>
           </div>
@@ -101,7 +102,7 @@ export default function Footer() {
         <div className="w-full border-b border-dotted border-zinc-800" />
       </div>
 
-      {/* 2. Middle Section: Giant Marquee + Garment Care Stamp */}
+      {/* 2. Middle Section: Giant Marquee + Spec Stamp */}
       <div className="w-full flex-1 flex flex-col justify-center items-center py-2 overflow-hidden pointer-events-none select-none">
         {/* Giant Infinite Marquee Wordmark (Continuous Left to Right, never pauses on hover) */}
         <div className="relative w-full overflow-hidden py-1 sm:py-2 bg-transparent pointer-events-none">
@@ -136,73 +137,82 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Center Care Label / Garment Stamp Section */}
+        {/* Center Specification Stamp Section */}
         <div className="w-full flex flex-col items-center justify-center mt-3 sm:mt-5 px-4 text-center select-none shrink-0 pointer-events-auto">
           <span className="text-xs sm:text-sm text-zinc-400 font-sans tracking-wide">
-            Handled with
+            Engineered for
           </span>
           <span className="text-xs sm:text-sm font-bold text-white tracking-widest mt-0.5">
-            100% CARE
+            4K 60FPS EDITING
           </span>
 
-          {/* Laundry Care Icons Cluster */}
+          {/* Video Tool Icons Cluster */}
           <div className="flex items-center justify-center gap-3 sm:gap-4 my-2 text-zinc-300">
-            {/* Symbol 1: Circle with A (Dry clean) */}
+            {/* Symbol 1: Filmstrip Reel */}
+            <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5 stroke-current fill-none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="3" />
+              <line x1="7" y1="2" x2="7" y2="22" />
+              <line x1="17" y1="2" x2="17" y2="22" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <line x1="2" y1="7" x2="7" y2="7" />
+              <line x1="2" y1="17" x2="7" y2="17" />
+              <line x1="17" y1="7" x2="22" y2="7" />
+              <line x1="17" y1="17" x2="22" y2="17" />
+            </svg>
+
+            {/* Symbol 2: Trimming Scissors */}
+            <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5 stroke-current fill-none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6" cy="6" r="3" />
+              <circle cx="6" cy="18" r="3" />
+              <line x1="20" y1="4" x2="8.12" y2="15.88" />
+              <line x1="14.47" y1="14.48" x2="20" y2="20" />
+              <line x1="8.12" y1="8.12" x2="12" y2="12" />
+            </svg>
+
+            {/* Symbol 3: Audio Waveform */}
+            <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5 stroke-current fill-none" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="3" y1="12" x2="3" y2="12.01" />
+              <line x1="7" y1="8" x2="7" y2="16" />
+              <line x1="11" y1="5" x2="11" y2="19" />
+              <line x1="15" y1="9" x2="15" y2="15" />
+              <line x1="19" y1="11" x2="19" y2="13" />
+            </svg>
+
+            {/* Symbol 4: Viewport Screen */}
+            <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5 stroke-current fill-none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <polygon points="10 8 16 10 10 12" fill="currentColor" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+
+            {/* Symbol 5: 4K UHD badge */}
             <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5 stroke-current fill-none" strokeWidth="1.6">
-              <circle cx="12" cy="12" r="9" />
-              <text x="12" y="15.5" textAnchor="middle" fontSize="10" fontWeight="bold" fill="currentColor" stroke="none" fontFamily="sans-serif">
-                A
-              </text>
-            </svg>
-
-            {/* Symbol 2: Wash Tub 30° */}
-            <svg viewBox="0 0 28 24" className="w-5 h-4 sm:w-6 sm:h-5 stroke-current fill-none" strokeWidth="1.6">
-              <path d="M4 8l2.5 12h15l2.5-12z" strokeLinejoin="round" />
-              <path d="M4 11c3 1 5-1 8 0s5 1 8 0 3-1 4 0" />
-              <text x="14" y="18" textAnchor="middle" fontSize="6.5" fontWeight="bold" fill="currentColor" stroke="none" fontFamily="sans-serif">
-                30°
-              </text>
-            </svg>
-
-            {/* Symbol 3: Iron with dot */}
-            <svg viewBox="0 0 26 24" className="w-5 h-4 sm:w-6 sm:h-5 stroke-current fill-none" strokeWidth="1.6">
-              <path d="M4 17h18l-3-8H8c-4 0-4 8-4 8z" strokeLinejoin="round" />
-              <path d="M8 9V6h10" />
-              <circle cx="13" cy="14" r="1" fill="currentColor" />
-            </svg>
-
-            {/* Symbol 4: Garment / T-Shirt */}
-            <svg viewBox="0 0 26 24" className="w-5 h-4 sm:w-6 sm:h-5 stroke-current fill-none" strokeWidth="1.6" strokeLinejoin="round">
-              <path d="M8 4l-5 4 3 4 2-1v8h10v-8l2 1 3-4-5-4c-2 2-6 2-8 0z" />
-            </svg>
-
-            {/* Symbol 5: Circle with A (Dry clean) */}
-            <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5 stroke-current fill-none" strokeWidth="1.6">
-              <circle cx="12" cy="12" r="9" />
-              <text x="12" y="15.5" textAnchor="middle" fontSize="10" fontWeight="bold" fill="currentColor" stroke="none" fontFamily="sans-serif">
-                A
+              <rect x="2" y="4" width="20" height="16" rx="3" />
+              <text x="12" y="15.5" textAnchor="middle" fontSize="7.5" fontWeight="bold" fill="currentColor" stroke="none" fontFamily="monospace">
+                4K
               </text>
             </svg>
           </div>
 
-          {/* Manufacturing Location Lines */}
+          {/* Engine Specifications Lines */}
           <span className="text-[11px] sm:text-xs text-zinc-400 tracking-wider uppercase">
-            Designed and
+            POWERED BY
           </span>
           <span className="text-[11px] sm:text-xs text-zinc-300 font-bold tracking-widest uppercase mt-0.5">
-            MANUFACTURED IN
+            - Zeesu Royalist -
           </span>
           <span className="text-[11px] sm:text-xs text-zinc-200 font-bold tracking-widest uppercase mt-0.5">
-            CAMBRIDGE, UK
+            BROWSER RENDERING ENGINE
           </span>
         </div>
       </div>
 
       {/* 3. Bottom Bar: Location, Copyright, Back to Top */}
       <div className="shrink-0 max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-zinc-500 font-sans border-t border-zinc-900/80">
-        <div>Cambridge, UK</div>
+        <div>Zeesu Royalist ꨄ︎</div>
 
-        <div>©2026 Aperios Design. All Rights Reserved.</div>
+        <div>© 2026 finally. All Rights Reserved.</div>
 
         <div className="flex items-center gap-3">
           <button

@@ -24,7 +24,7 @@ export default function Hero() {
   }, [isInteractive]);
 
   return (
-    <section className="relative w-full h-screen min-h-[640px] overflow-hidden bg-white flex items-center justify-center selection:bg-zinc-900 selection:text-white">
+    <section id="interactive-model" className="relative w-full h-screen min-h-[640px] overflow-hidden bg-white flex items-center justify-center selection:bg-zinc-900 selection:text-white">
       {/* 3D Model Canvas:
           When isInteractive: Elevated to z-30 with pointer-events-auto so the user can immediately
           click-drag to rotate and mouse-wheel to zoom without needing any preliminary click.
@@ -61,12 +61,12 @@ export default function Hero() {
         <div className="flex flex-col items-center">
           {/* Main Headline */}
           <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-[5.5rem] font-medium tracking-[-0.04em] text-zinc-950 leading-[1.06] max-w-4xl select-none drop-shadow-[0_2px_16px_rgba(255,255,255,0.85)]">
-            Engineered for Creativity
+            Engineered for Editors
           </h1>
 
           {/* Subtitle */}
           <p className="mt-4 sm:mt-5 text-base sm:text-xl font-normal text-zinc-600 leading-relaxed max-w-xl select-none drop-shadow-[0_1px_8px_rgba(255,255,255,0.8)]">
-            Butter, the first video editor you can build on.
+            finally, the modern browser video editor built for creators.
           </p>
         </div>
 
@@ -75,12 +75,12 @@ export default function Hero() {
           className={`mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-3 ${isContentVisible ? 'pointer-events-auto' : 'pointer-events-none invisible'
             }`}
         >
-          {/* Get Started Button */}
+          {/* Start Editing Button */}
           <Link
             href="/"
             className="h-11 sm:h-12 px-7 rounded-full bg-zinc-950 hover:bg-black text-white text-sm font-medium transition-all shadow-lg shadow-zinc-900/15 hover:shadow-xl hover:scale-[1.02] active:scale-95 flex items-center justify-center cursor-pointer"
           >
-            Get Started
+            Start Editing
           </Link>
 
           {/* See 3D Model Button - triggers interactive mode */}
@@ -98,10 +98,20 @@ export default function Hero() {
         </div>
 
         {/* Helper hint */}
-        <div className="mt-3.5 flex items-center gap-1.5 text-xs text-zinc-500 select-none font-medium">
-          <span>Click</span>
-          <span className="font-semibold text-zinc-800 underline underline-offset-2">See 3D Model</span>
-          <span>to interact & rotate in 360°</span>
+        <div
+          className={`mt-3.5 flex items-center gap-1.5 text-xs text-zinc-500 font-medium ${isContentVisible ? 'pointer-events-auto' : 'pointer-events-none invisible'
+            }`}
+        >
+          <span>Meet</span>
+          <a
+            href="https://zeesu-royalist.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-zinc-800 hover:text-black underline underline-offset-2 transition-colors cursor-pointer"
+          >
+            Zeesu Royalist
+          </a>
+          <span>Developer Of This Project</span>
         </div>
       </div>
     </section>

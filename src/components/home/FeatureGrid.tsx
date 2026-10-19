@@ -20,16 +20,16 @@ export default function FeatureGrid() {
   const [tilt, setTilt] = useState(73);
 
   return (
-    <section className="relative w-full bg-white text-zinc-900 pt-24 sm:pt-32 pb-28 sm:pb-36 px-4 sm:px-6 lg:px-12 border-t border-zinc-100 selection:bg-cyan-500/20">
+    <section id="features" className="relative w-full bg-white text-zinc-900 pt-24 sm:pt-32 pb-28 sm:pb-36 px-4 sm:px-6 lg:px-12 border-t border-zinc-100 selection:bg-cyan-500/20">
       <div className="max-w-[1360px] mx-auto">
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 sm:mb-16">
           <div className="flex flex-col">
             <span className="font-mono text-xs sm:text-[13px] text-zinc-400 font-normal tracking-[0.02em] mb-3 select-none">
-              Explore features
+              Studio features
             </span>
             <h2 className="text-3xl sm:text-5xl md:text-[3.4rem] font-medium tracking-[-0.035em] text-zinc-950 leading-[1.1]">
-              Your new all-in-one video editor.
+              Your all-in-one browser video editor.
             </h2>
           </div>
 
@@ -37,7 +37,7 @@ export default function FeatureGrid() {
             href="/"
             className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#f0f0f2] hover:bg-[#e4e4e7] text-zinc-800 text-sm font-medium transition-all duration-200 self-start md:self-auto shadow-xs active:scale-95 group cursor-pointer select-none"
           >
-            <span>View All Features</span>
+            <span>Open Video Studio</span>
             <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -180,7 +180,7 @@ export default function FeatureGrid() {
                 Import
               </h3>
               <p className="mt-1 text-sm text-zinc-500 font-normal leading-relaxed">
-                Drop in photos, videos, audio, and assets from anywhere, instantly.
+                Drop in 4K clips, audio tracks, photos, and assets instantly.
               </p>
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function FeatureGrid() {
                     T
                   </div>
                   <span className="text-xs font-medium text-white tracking-tight">
-                    Up to 40% Off
+                    Cinematic Title Intro
                   </span>
                 </div>
 
@@ -246,7 +246,7 @@ export default function FeatureGrid() {
                     </svg>
                   </div>
                   <span className="text-xs font-medium text-zinc-100 tracking-tight">
-                    3D Carousel
+                    Motion Overlay Clip
                   </span>
                 </div>
 
@@ -256,7 +256,7 @@ export default function FeatureGrid() {
                     <Music className="w-3.5 h-3.5" />
                   </div>
                   <span className="text-xs font-normal text-zinc-300 tracking-tight truncate">
-                    Honey on the Wind
+                    Synthwave Beat (120 BPM)
                   </span>
                 </div>
 
@@ -285,7 +285,7 @@ export default function FeatureGrid() {
                 Edit
               </h3>
               <p className="mt-1 text-sm text-zinc-500 font-normal leading-relaxed">
-                Powerful timeline editing with speed controls, voiceovers, and built-in stock libraries.
+                Multi-track timeline editing with ripple trimming, audio waveforms, and instant split.
               </p>
             </div>
           </div>
@@ -302,10 +302,10 @@ export default function FeatureGrid() {
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold text-white tracking-tight">
-                      3D Carousel
+                      Color & FX
                     </span>
                     <span className="text-[10px] text-zinc-500">
-                      Select up to 20 assets
+                      Fine-tune video clips
                     </span>
                   </div>
 
@@ -374,13 +374,13 @@ export default function FeatureGrid() {
                     type="button"
                     className="py-1 px-3 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-white/5 transition-colors cursor-pointer text-center"
                   >
-                    Manage
+                    Filters
                   </button>
                   <button
                     type="button"
                     className="py-1 px-3 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-white/5 transition-colors cursor-pointer text-center"
                   >
-                    Remove BG
+                    AI Chroma
                   </button>
                 </div>
 
@@ -402,10 +402,10 @@ export default function FeatureGrid() {
                     </div>
                   </div>
 
-                  {/* Row 2: Rotation (38/100) */}
+                  {/* Row 2: Scale (38/100) */}
                   <div className="h-9 rounded-xl bg-zinc-900/90 border border-white/5 flex items-center overflow-hidden">
                     <div className="w-1/2 h-full bg-[#1e1e24] px-2.5 flex flex-col justify-center">
-                      <span className="text-[9.5px] text-zinc-400 leading-tight">Rotation</span>
+                      <span className="text-[9.5px] text-zinc-400 leading-tight">Scale</span>
                       <span className="text-[11px] font-medium text-zinc-200 leading-tight">
                         {rotation2}
                         <span className="text-zinc-500 font-normal">/100</span>
@@ -417,10 +417,10 @@ export default function FeatureGrid() {
                     </div>
                   </div>
 
-                  {/* Row 3: Tilt (73/100) */}
+                  {/* Row 3: Opacity (73/100) */}
                   <div className="h-9 rounded-xl bg-zinc-900/90 border border-white/5 flex items-center overflow-hidden">
                     <div className="w-1/2 h-full bg-[#1e1e24] px-2.5 flex flex-col justify-center">
-                      <span className="text-[9.5px] text-zinc-400 leading-tight">Tilt</span>
+                      <span className="text-[9.5px] text-zinc-400 leading-tight">Opacity</span>
                       <span className="text-[11px] font-medium text-zinc-200 leading-tight">
                         {tilt}
                         <span className="text-zinc-500 font-normal">/100</span>
@@ -441,7 +441,7 @@ export default function FeatureGrid() {
                 Enhance
               </h3>
               <p className="mt-1 text-sm text-zinc-500 font-normal leading-relaxed">
-                Layer animations, effects, and shaders to elevate every frame.
+                Fine-tune color grading, transitions, and audio filters with keyframes.
               </p>
             </div>
           </div>
@@ -465,10 +465,10 @@ export default function FeatureGrid() {
             {/* Title & Description */}
             <div className="mt-4 flex flex-col">
               <h3 className="text-xl font-medium tracking-[-0.02em] text-zinc-950">
-                Ship
+                Export
               </h3>
               <p className="mt-1 text-sm text-zinc-500 font-normal leading-relaxed">
-                Collaborate in real time and export in up to 60fps, including Image, Video, GIF & ProRes.
+                Render and export in crisp 4K 60FPS across MP4, WebM, and social presets.
               </p>
             </div>
           </div>

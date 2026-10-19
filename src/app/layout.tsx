@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   title: 'finally - Professional Online Video Editor',
   description:
     'finally is a modern, fast, browser-native video editor with multi-track timeline, trimming, audio mixing, text overlays, color adjustments, and instant export.',
+  icons: {
+    icon: [
+      { url: '/images/favicon.png', type: 'image/png' },
+      { url: '/favicon.ico' },
+    ],
+    shortcut: '/images/favicon.png',
+    apple: '/images/favicon.png',
+  },
 };
 
 export const viewport: Viewport = {

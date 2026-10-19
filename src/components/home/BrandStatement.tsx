@@ -112,7 +112,7 @@ export default function BrandStatement() {
       >
         {/* Line 1 */}
         <div className="flex items-center justify-center whitespace-nowrap gap-[0.22em] max-w-full">
-          <span>Butter</span>
+          <span>finally</span>
           <Badge
             gif="https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3N3FuaWw0aGVvdmxlOHlnN3oxaDg4M2Y1amF1dWJqcnN3a2prcTBoNCZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/ytu2GUYbvhz7zShGwS/giphy.gif"
             bg="radial-gradient(circle at 35% 25%, #e3f1fc, #85bfe8)"
@@ -127,13 +127,13 @@ export default function BrandStatement() {
               />
             </svg>
           </Badge>
-          <span>is the first video</span>
+          <span>is the modern video</span>
           <Badge
             gif="https://media.giphy.com/media/26AHONQ79FdWZhAI0/giphy.gif"
             className="bg-[#121215] border-t border-white/20 shadow-xs"
           >
             <span className="text-[0.27em] font-black uppercase tracking-tight text-white select-none leading-none">
-              wild
+              CUT
             </span>
           </Badge>
           <span>editor where</span>
@@ -149,7 +149,7 @@ export default function BrandStatement() {
               className="w-full h-full object-cover mix-blend-multiply opacity-90"
             />
           </Badge>
-          <span>build remix</span>
+          <span>cut remix</span>
           <Badge
             gif="https://media.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif"
             className="bg-black p-[0.04em] shadow-xs"
@@ -162,25 +162,25 @@ export default function BrandStatement() {
               }}
             >
               <span className="text-white font-black text-[0.19em] tracking-tight select-none leading-none">
-                JUSTIFIED
+                RENDER
               </span>
             </div>
           </Badge>
-          <span>custom</span>
+          <span>cinematic</span>
         </div>
 
         {/* Line 3 */}
         <div className="flex items-center justify-center whitespace-nowrap gap-[0.22em] max-w-full mt-[0.14em] sm:mt-2">
-          <span>design tools</span>
+          <span>visual stories</span>
           <Badge
             gif="https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif"
             className="bg-[#fafafd] border border-red-500/25 shadow-xs"
           >
             <div className="flex flex-col items-center justify-center text-[#e01e1e] font-black text-[0.165em] leading-[0.82] select-none">
-              <span className="opacity-70 -mt-[0.05em]">PT. AR</span>
-              <span>DEPT. ART</span>
-              <span>DEPT. ART</span>
-              <span className="opacity-70 -mb-[0.05em]">PT. AR</span>
+              <span className="opacity-70 -mt-[0.05em]">REC 24FPS</span>
+              <span>4K UHD</span>
+              <span>4K UHD</span>
+              <span className="opacity-70 -mb-[0.05em]">REC 24FPS</span>
             </div>
           </Badge>
           <span>right on timeline.</span>
