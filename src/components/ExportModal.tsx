@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
   Download,
   X,
   CheckCircle2,
   AlertCircle,
-  Film,
   RotateCw,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
@@ -60,8 +60,14 @@ export default function ExportModal() {
         {/* Modal Header */}
         <div className="px-3 sm:px-4 py-2.5 border-b border-[#333333] flex items-center justify-between bg-[#202020] shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-[2px] bg-[#222228] border border-[#383842] flex items-center justify-center">
-              <Film className="w-3 h-3 text-white" />
+            <div className="w-5 h-5 rounded-[2px] bg-[#222228] border border-[#383842] flex items-center justify-center overflow-hidden">
+              <Image
+                src="/images/favicon.png"
+                alt="Logo"
+                width={14}
+                height={14}
+                className="w-3.5 h-3.5 object-contain"
+              />
             </div>
             <div>
               <h3 className="text-xs font-semibold text-[#E6E6E6]">
