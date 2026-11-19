@@ -27,6 +27,7 @@ import {
   Maximize2,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
+import { AspectRatio } from '../types/editor';
 
 const FONTS = ['Inter', 'Arial', 'Georgia', 'Courier New', 'Impact', 'Trebuchet MS'];
 
@@ -268,18 +269,19 @@ function AspectRatioSelector({
   setAspectRatio,
 }: {
   aspectRatio: string;
-  setAspectRatio: (r: any) => void;
+  setAspectRatio: (r: AspectRatio) => void;
 }) {
   return (
     <div className="p-2.5 rounded-[2px] bg-[#202020] border border-[#303030] space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-[#A0A0A0]">Canvas Aspect Ratio</span>
         <span className="text-xs font-bold text-white font-mono bg-[#161618] px-1.5 py-0.5 rounded border border-[#333333]">
-          {aspectRatio}
+          {aspectRatio === 'original' ? 'Auto' : aspectRatio}
         </span>
       </div>
-      <div className="grid grid-cols-5 gap-1 pt-0.5">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 pt-0.5">
         {[
+          { ratio: 'original' as const, label: 'Auto', desc: 'Original', icon: <Maximize2 className="w-3 h-3" /> },
           { ratio: '16:9' as const, label: '16:9', desc: 'YouTube', icon: <Monitor className="w-3 h-3" /> },
           { ratio: '9:16' as const, label: '9:16', desc: 'Reels', icon: <Smartphone className="w-3 h-3" /> },
           { ratio: '1:1' as const, label: '1:1', desc: 'Square', icon: <Square className="w-3 h-3" /> },

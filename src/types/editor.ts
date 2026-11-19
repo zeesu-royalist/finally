@@ -1,4 +1,4 @@
-export type AspectRatio = '16:9' | '9:16' | '1:1' | '4:5' | '21:9';
+export type AspectRatio = 'original' | '16:9' | '9:16' | '1:1' | '4:5' | '21:9';
 
 export type ThemeId = 'obsidian' | 'midnight' | 'slate' | 'crimson';
 
@@ -8,6 +8,8 @@ export interface VideoClip {
   url: string;
   mediaId?: string;       // persistent IndexedDB media blob key
   sourceDuration: number; // total duration of the original source file in seconds
+  width?: number;         // native video pixel width
+  height?: number;        // native video pixel height
   startTime: number;      // position in the timeline in seconds
   duration: number;       // active duration on timeline in seconds
   offsetStart: number;    // trimmed offset from beginning of media in seconds
@@ -83,6 +85,7 @@ export interface SavedProject {
   id: string;             // 'current_project'
   projectTitle: string;
   aspectRatio: AspectRatio;
+  customResolution?: { width: number; height: number };
   theme: ThemeId;
   currentTime: number;
   videoClips: VideoClip[];
@@ -95,6 +98,7 @@ export interface SavedProject {
 export interface ProjectSettings {
   title: string;
   aspectRatio: AspectRatio;
+  customResolution?: { width: number; height: number };
   theme: ThemeId;
   totalDuration: number; // minimum or calculated timeline duration
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   Play,
   Pause,
@@ -14,7 +14,7 @@ import {
   Move,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
-import { AspectRatio, TextClip, ImageClip } from '../types/editor';
+import { AspectRatio, TextClip, ImageClip, VideoClip } from '../types/editor';
 import { getFilterCssString } from '../utils/filterUtils';
 
 function formatTimecode(seconds: number): string {
@@ -26,20 +26,21 @@ function formatTimecode(seconds: number): string {
     .padStart(2, '0')}`;
 }
 
-function getAspectRatioValue(ratio: AspectRatio): string {
+function getTargetAspect(ratio: AspectRatio, clip?: VideoClip | null): { ratioStr: string; numeric: number } {
+  if (ratio === 'original' && clip?.width && clip?.height && clip.height > 0) {
+    return {
+      ratioStr: `${clip.width} / ${clip.height}`,
+      numeric: clip.width / clip.height,
+    };
+  }
   switch (ratio) {
+    case '9:16': return { ratioStr: '9 / 16', numeric: 9 / 16 };
+    case '1:1': return { ratioStr: '1 / 1', numeric: 1 };
+    case '4:5': return { ratioStr: '4 / 5', numeric: 4 / 5 };
+    case '21:9': return { ratioStr: '21 / 9', numeric: 21 / 9 };
     case '16:9':
-      return '16 / 9';
-    case '9:16':
-      return '9 / 16';
-    case '1:1':
-      return '1 / 1';
-    case '4:5':
-      return '4 / 5';
-    case '21:9':
-      return '21 / 9';
     default:
-      return '16 / 9';
+      return { ratioStr: '16 / 9', numeric: 16 / 9 };
   }
 }
 
@@ -51,7 +52,10 @@ export default function PreviewPlayer() {
     togglePlay,
     seekTo,
     aspectRatio,
+    videoClips,
     activeVideoClip,
+    updateVideoClip,
+    audioClips,
     activeAudioClips,
     activeTextClips,
     activeImageClips,
@@ -66,10 +70,34 @@ export default function PreviewPlayer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  const [viewFitMode, setViewFitMode] = useState<'fit' | 'fill'>('fit');
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [masterVolume, setMasterVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isDraggingTextId, setIsDraggingTextId] = useState<string | null>(null);
   const dragStartRef = useRef<{ startX: number; startY: number; initTextX: number; initTextY: number } | null>(null);
+
+  // Measure container dimensions for pixel-perfect aspect ratio frame fitting
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setContainerSize({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(container);
+    window.addEventListener('resize', updateSize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
 
   // Track previous playback states to avoid continuous seeking while playing
   const prevIsPlayingRef = useRef(false);
@@ -177,14 +205,21 @@ export default function PreviewPlayer() {
       }
     });
 
-    // Pause any inactive audio tracks
+    // Pause any inactive audio tracks & clean up deleted audio elements
     audioRefs.current.forEach((el, id) => {
-      const isActive = activeAudioClips.some((c) => c.id === id);
-      if (!isActive && !el.paused) {
+      const clipStillExists = audioClips.some((c) => c.id === id);
+      if (!clipStillExists) {
         el.pause();
+        el.src = '';
+        audioRefs.current.delete(id);
+      } else {
+        const isActive = activeAudioClips.some((c) => c.id === id);
+        if (!isActive && !el.paused) {
+          el.pause();
+        }
       }
     });
-  }, [activeAudioClips, currentTime, isPlaying, masterVolume, isMuted]);
+  }, [audioClips, activeAudioClips, currentTime, isPlaying, masterVolume, isMuted]);
 
   // Cleanup audio elements on unmount
   useEffect(() => {
@@ -466,6 +501,46 @@ export default function PreviewPlayer() {
     }
   };
 
+  const primaryClip = activeVideoClip || videoClips[0];
+  const targetAspect = getTargetAspect(aspectRatio, primaryClip);
+
+  const viewportDimensions = useMemo(() => {
+    if (viewFitMode === 'fill') {
+      return {
+        width: '100%',
+        height: 'calc(100% - 52px)',
+        maxWidth: '100%',
+        maxHeight: 'calc(100% - 52px)',
+      };
+    }
+
+    if (containerSize.width <= 0 || containerSize.height <= 0) {
+      return {
+        aspectRatio: targetAspect.ratioStr,
+        maxHeight: 'calc(100% - 52px)',
+        maxWidth: '100%',
+      };
+    }
+
+    const availW = Math.max(60, containerSize.width - 24);
+    const availH = Math.max(60, containerSize.height - 56);
+
+    let frameW = availW;
+    let frameH = availW / targetAspect.numeric;
+
+    if (frameH > availH) {
+      frameH = availH;
+      frameW = availH * targetAspect.numeric;
+    }
+
+    return {
+      width: `${Math.round(frameW)}px`,
+      height: `${Math.round(frameH)}px`,
+      maxWidth: '100%',
+      maxHeight: 'calc(100% - 52px)',
+    };
+  }, [containerSize, targetAspect, viewFitMode]);
+
   return (
     <div
       ref={containerRef}
@@ -479,31 +554,46 @@ export default function PreviewPlayer() {
       {/* Aspect Ratio Viewport Frame */}
       <div
         ref={viewportRef}
-        style={{
-          aspectRatio: getAspectRatioValue(aspectRatio),
-          maxHeight: 'calc(100% - 56px)',
-          maxWidth: '100%',
-        }}
+        style={viewportDimensions}
         onClick={(e) => {
           e.stopPropagation();
           if (activeVideoClip) {
             setSelectedItem({ type: 'video', id: activeVideoClip.id });
           }
         }}
-        className={`w-full h-full relative rounded-[2px] overflow-hidden bg-[#0a0a0a] border flex items-center justify-center transition-all duration-150 cursor-pointer ${selectedItem?.type === 'video' && activeVideoClip && selectedItem.id === activeVideoClip.id
-          ? 'border-white'
-          : 'border-[#333333] hover:border-[#444444]'
-          }`}
+        className={`relative rounded-[2px] overflow-hidden bg-[#0a0a0a] border flex items-center justify-center transition-all duration-150 cursor-pointer ${
+          selectedItem?.type === 'video' && activeVideoClip && selectedItem.id === activeVideoClip.id
+            ? 'border-white'
+            : 'border-[#333333] hover:border-[#444444]'
+        }`}
       >
-        {/* Video Player */}
+        {/* Video Player - Default is Fit (object-contain with true aspect ratio), toggles to Fill */}
         {activeVideoClip ? (
           <video
             ref={videoRef}
             src={activeVideoClip.url}
-            className="w-full h-full object-contain pointer-events-none transition-transform duration-100"
+            className={`w-full h-full pointer-events-none transition-transform duration-100 ${
+              viewFitMode === 'fill' ? 'object-cover' : 'object-contain'
+            }`}
             style={videoFilterStyle}
             muted={isMuted || activeVideoClip.isMuted}
             playsInline
+            onLoadedMetadata={(e) => {
+              const vid = e.currentTarget;
+              if (vid.videoWidth && vid.videoHeight) {
+                if (
+                  !activeVideoClip.width ||
+                  !activeVideoClip.height ||
+                  activeVideoClip.width !== vid.videoWidth ||
+                  activeVideoClip.height !== vid.videoHeight
+                ) {
+                  updateVideoClip(activeVideoClip.id, {
+                    width: vid.videoWidth,
+                    height: vid.videoHeight,
+                  });
+                }
+              }
+            }}
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-6 text-[#777777]">
@@ -628,17 +718,17 @@ export default function PreviewPlayer() {
         })}
       </div>
 
-      {/* Control Bar - Responsive Studio Style */}
-      <div className="h-9 w-full max-w-lg mt-1.5 sm:mt-2 px-1.5 sm:px-2 rounded-[2px] bg-[#222222] border border-[#333333] flex items-center justify-between gap-1 z-20 shrink-0 relative">
+      {/* Control Bar - Positioned neatly below the video viewport */}
+      <div className="h-9 w-full max-w-xl mt-1.5 sm:mt-2 px-2 sm:px-3 rounded-[2px] bg-[#222222] border border-[#333333] flex items-center justify-between gap-1.5 z-20 shrink-0 relative select-none shadow-sm">
         {/* Timecode Display - Left */}
-        <div className="font-mono text-[9px] sm:text-[11px] font-normal tracking-wider text-[#A0A0A0] px-1.5 sm:px-2 py-0.5 rounded-[2px] bg-[#141414] border border-[#2d2d2d] flex items-center shrink-0 whitespace-nowrap z-10">
+        <div className="font-mono text-[9px] sm:text-[11px] font-normal tracking-wider text-[#A0A0A0] px-1.5 sm:px-2 py-0.5 rounded-[2px] bg-[#141414] border border-[#2d2d2d] flex items-center shrink-0 whitespace-nowrap">
           <span className="text-white font-medium">{formatTimecode(currentTime)}</span>
           <span className="text-[#555555] mx-0.5 sm:mx-1">/</span>
           <span>{formatTimecode(totalDuration)}</span>
         </div>
 
         {/* Playback Controls (Reset to start, SkipBack, Play, SkipForward) - Center */}
-        <div className="flex items-center gap-0.5 shrink-0 absolute left-1/2 -translate-x-1/2 z-10">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
             onClick={() => seekTo(0)}
             title="Reset to start (Home)"
@@ -657,7 +747,7 @@ export default function PreviewPlayer() {
 
           <button
             onClick={togglePlay}
-            className="w-6 h-6 rounded-[2px] bg-[#2d2d2e] hover:bg-[#383839] active:bg-[#252526] border border-[#383838] text-white flex items-center justify-center transition cursor-pointer"
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-[2px] bg-[#2d2d2e] hover:bg-[#383839] active:bg-[#252526] border border-[#383838] text-white flex items-center justify-center transition cursor-pointer"
             title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
             {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
@@ -672,8 +762,27 @@ export default function PreviewPlayer() {
           </button>
         </div>
 
-        {/* Volume & Fullscreen - Right */}
-        <div className="flex items-center gap-1.5 shrink-0 z-10 ml-auto">
+        {/* Volume, Fit/Fill Toggle & Fullscreen - Right */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Fit / Fill Mode Toggle Button */}
+          <button
+            onClick={() => setViewFitMode((prev) => (prev === 'fit' ? 'fill' : 'fit'))}
+            className={`px-1.5 py-0.5 rounded-[2px] border text-[9px] sm:text-[10px] font-medium transition cursor-pointer flex items-center gap-1 ${
+              viewFitMode === 'fill'
+                ? 'bg-white text-black border-white font-semibold shadow-xs'
+                : 'bg-[#181818] text-[#A0A0A0] hover:text-white border-[#383838] hover:bg-[#252525]'
+            }`}
+            title={
+              viewFitMode === 'fit'
+                ? 'Mode: FIT (Default: Complete video frame visible). Click to switch to FILL.'
+                : 'Mode: FILL (Edge-to-edge frame, fills side spaces). Click to switch to FIT.'
+            }
+          >
+            <span className="uppercase text-[9px] tracking-wider font-mono font-semibold">{viewFitMode}</span>
+          </button>
+
+          <div className="h-3 w-px bg-[#333333]" />
+
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsMuted(!isMuted)}
@@ -696,7 +805,7 @@ export default function PreviewPlayer() {
                 setMasterVolume(parseFloat(e.target.value));
                 if (isMuted) setIsMuted(false);
               }}
-              className="w-12 hidden lg:block cursor-pointer"
+              className="w-10 sm:w-12 hidden md:block cursor-pointer"
               title={`Master Volume: ${Math.round(masterVolume * 100)}%`}
             />
           </div>

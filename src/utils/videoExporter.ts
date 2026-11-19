@@ -7,7 +7,34 @@ export interface ExportProgress {
   previewCanvas?: HTMLCanvasElement;
 }
 
-export function getResolutionForAspectRatio(ratio: AspectRatio): { width: number; height: number } {
+export function getResolutionForAspectRatio(
+  ratio: AspectRatio,
+  primaryVideoClip?: VideoClip
+): { width: number; height: number } {
+  if (ratio === 'original' && primaryVideoClip && primaryVideoClip.width && primaryVideoClip.height) {
+    let w = Math.round(primaryVideoClip.width);
+    let h = Math.round(primaryVideoClip.height);
+
+    // Encoders strictly require even pixel dimensions
+    if (w % 2 !== 0) w -= 1;
+    if (h % 2 !== 0) h -= 1;
+
+    // Safety cap to prevent browser canvas memory exhaustion on 4K/8K
+    const maxDimension = 1920;
+    if (w > maxDimension || h > maxDimension) {
+      if (w >= h) {
+        h = Math.round((h * maxDimension) / w);
+        w = maxDimension;
+      } else {
+        w = Math.round((w * maxDimension) / h);
+        h = maxDimension;
+      }
+      if (w % 2 !== 0) w -= 1;
+      if (h % 2 !== 0) h -= 1;
+    }
+    return { width: Math.max(120, w), height: Math.max(120, h) };
+  }
+
   switch (ratio) {
     case '16:9': return { width: 1280, height: 720 };
     case '9:16': return { width: 720, height: 1280 };
@@ -76,7 +103,10 @@ function renderCanvasFrame({
 
     let drawW = width;
     let drawH = height;
-    if (vidAspect > canvasAspect) {
+    if (Math.abs(vidAspect - canvasAspect) < 0.005) {
+      drawW = width;
+      drawH = height;
+    } else if (vidAspect > canvasAspect) {
       drawW = width;
       drawH = width / vidAspect;
     } else {
@@ -201,8 +231,15 @@ export async function exportEditedVideo({
   format?: 'mp4' | 'webm';
   onProgress: (progress: ExportProgress) => void;
 }): Promise<{ blob: Blob; url: string; mimeType: string; format: 'mp4' | 'webm' }> {
-  const { width, height } = getResolutionForAspectRatio(aspectRatio);
-  const safeDuration = Math.max(0.5, totalDuration);
+  let { width, height } = getResolutionForAspectRatio(aspectRatio, videoClips[0]);
+
+  // Sequence strictly ends where visual media ends; extra audio is not exported.
+  const maxVisualEnd = Math.max(
+    ...videoClips.map((c) => c.startTime + c.duration),
+    ...imageClips.map((c) => c.startTime + c.duration),
+    0
+  );
+  const safeDuration = Math.max(0.5, maxVisualEnd > 0 ? Math.min(totalDuration, maxVisualEnd) : totalDuration);
 
   onProgress({ progress: 2, status: 'Initializing video & audio tracks...' });
 
@@ -332,6 +369,20 @@ export async function exportEditedVideo({
       return trackObj;
     })
   );
+
+  // If aspect ratio is 'original', synchronize resolution with the loaded primary video element
+  if (aspectRatio === 'original' && videoTracks.length > 0 && videoTracks[0].el) {
+    const primaryVid = videoTracks[0].el as HTMLVideoElement;
+    if (primaryVid.videoWidth && primaryVid.videoHeight) {
+      const derived = getResolutionForAspectRatio('original', {
+        ...videoClips[0],
+        width: primaryVid.videoWidth,
+        height: primaryVid.videoHeight,
+      });
+      width = derived.width;
+      height = derived.height;
+    }
+  }
 
   // 4. Load audio clips concurrently
   const audioTracks: MediaTrack<AudioClip>[] = await Promise.all(

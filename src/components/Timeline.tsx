@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Scissors,
@@ -40,66 +40,76 @@ import { FILTER_PRESETS, DEFAULT_ADJUSTMENTS } from '../utils/filterUtils';
 
 const BASE_PIXELS_PER_SECOND = 50;
 
-function TimelineClipBlock({
-  startTime,
-  duration,
-  pxPerSec,
-  isSelected,
-  bgClass,
-  borderClass,
-  isCompact = false,
-  onMouseDown,
-  onTouchStart,
-  onTrimMouseDown,
-  onTrimTouchStart,
-  onSelect,
-  children,
-}: {
-  startTime: number;
-  duration: number;
-  pxPerSec: number;
-  isSelected: boolean;
-  bgClass: string;
-  borderClass: string;
-  isCompact?: boolean;
-  onMouseDown: (e: React.MouseEvent) => void;
-  onTouchStart?: (e: React.TouchEvent) => void;
-  onTrimMouseDown: (e: React.MouseEvent, edge: 'start' | 'end') => void;
-  onTrimTouchStart?: (e: React.TouchEvent, edge: 'start' | 'end') => void;
-  onSelect: () => void;
-  children: React.ReactNode;
-}) {
-  const left = startTime * pxPerSec;
-  const width = Math.max(20, duration * pxPerSec);
+const TimelineClipBlock = React.memo(
+  function TimelineClipBlock({
+    startTime,
+    duration,
+    pxPerSec,
+    isSelected,
+    bgClass,
+    borderClass,
+    isCompact = false,
+    onMouseDown,
+    onTouchStart,
+    onTrimMouseDown,
+    onTrimTouchStart,
+    onSelect,
+    children,
+  }: {
+    startTime: number;
+    duration: number;
+    pxPerSec: number;
+    isSelected: boolean;
+    bgClass: string;
+    borderClass: string;
+    isCompact?: boolean;
+    onMouseDown: (e: React.MouseEvent) => void;
+    onTouchStart?: (e: React.TouchEvent) => void;
+    onTrimMouseDown: (e: React.MouseEvent, edge: 'start' | 'end') => void;
+    onTrimTouchStart?: (e: React.TouchEvent, edge: 'start' | 'end') => void;
+    onSelect: () => void;
+    children: React.ReactNode;
+  }) {
+    const left = startTime * pxPerSec;
+    const width = Math.max(20, duration * pxPerSec);
 
-  return (
-    <div
-      onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-      style={{ left: `${left}px`, width: `${width}px` }}
-      className={`absolute ${isCompact ? 'top-0.5 bottom-0.5 rounded-[2px] px-1.5' : 'top-1 bottom-1 rounded-[2px] px-2'} ${bgClass} ${borderClass} cursor-grab active:cursor-grabbing flex items-center justify-between overflow-hidden transition-all ${isSelected ? 'ring-1 ring-white brightness-125 z-20' : 'hover:brightness-105 z-10'
-        }`}
-    >
+    return (
       <div
-        onMouseDown={(e) => onTrimMouseDown(e, 'start')}
-        onTouchStart={(e) => onTrimTouchStart?.(e, 'start')}
-        className={`absolute left-0 top-0 bottom-0 ${isCompact ? 'w-1.5 sm:w-1 hover:w-2' : 'w-2 sm:w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
-        title="Trim start"
-      />
-      {children}
-      <div
-        onMouseDown={(e) => onTrimMouseDown(e, 'end')}
-        onTouchStart={(e) => onTrimTouchStart?.(e, 'end')}
-        className={`absolute right-0 top-0 bottom-0 ${isCompact ? 'w-1.5 sm:w-1 hover:w-2' : 'w-2 sm:w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
-        title="Trim end"
-      />
-    </div>
-  );
-}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
+        style={{ left: `${left}px`, width: `${width}px` }}
+        className={`absolute ${isCompact ? 'top-0.5 bottom-0.5 rounded-[2px] px-1.5' : 'top-1 bottom-1 rounded-[2px] px-2'} ${bgClass} ${borderClass} cursor-grab active:cursor-grabbing flex items-center justify-between overflow-hidden transition-all ${isSelected ? 'ring-1 ring-white brightness-125 z-20' : 'hover:brightness-105 z-10'
+          }`}
+      >
+        <div
+          onMouseDown={(e) => onTrimMouseDown(e, 'start')}
+          onTouchStart={(e) => onTrimTouchStart?.(e, 'start')}
+          className={`absolute left-0 top-0 bottom-0 ${isCompact ? 'w-1.5 sm:w-1 hover:w-2' : 'w-2 sm:w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
+          title="Trim start"
+        />
+        {children}
+        <div
+          onMouseDown={(e) => onTrimMouseDown(e, 'end')}
+          onTouchStart={(e) => onTrimTouchStart?.(e, 'end')}
+          className={`absolute right-0 top-0 bottom-0 ${isCompact ? 'w-1.5 sm:w-1 hover:w-2' : 'w-2 sm:w-1.5 hover:w-2.5'} bg-white/20 hover:bg-white/60 cursor-ew-resize transition-all z-10`}
+          title="Trim end"
+        />
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.startTime === next.startTime &&
+    prev.duration === next.duration &&
+    prev.pxPerSec === next.pxPerSec &&
+    prev.isSelected === next.isSelected &&
+    prev.bgClass === next.bgClass &&
+    prev.borderClass === next.borderClass &&
+    prev.isCompact === next.isCompact
+);
 
 export default function Timeline() {
   const {
@@ -136,6 +146,7 @@ export default function Timeline() {
     addTextClip,
     aspectRatio,
     setAspectRatio,
+    saveSnapshot,
   } = useEditor();
 
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -169,7 +180,13 @@ export default function Timeline() {
   }, []);
 
   const pxPerSec = BASE_PIXELS_PER_SECOND * timelineZoom;
-  const timelineContentWidth = Math.max(containerWidth, (totalDuration + 8) * pxPerSec);
+  // Ensure timeline always extends comfortably beyond clips, currentTime, and container
+  const maxTimelineTime = Math.max(
+    totalDuration + 15,
+    currentTime + 10,
+    containerWidth > 0 ? containerWidth / pxPerSec : 30
+  );
+  const timelineContentWidth = Math.max(containerWidth, (maxTimelineTime + 5) * pxPerSec);
 
   const [activePopover, setActivePopover] = useState<'speed' | 'filter' | 'ratio' | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -216,39 +233,48 @@ export default function Timeline() {
     startX: number;
   } | null>(null);
 
+  const cachedContainerLeftRef = useRef<number | null>(null);
+
+  // Exact timeline time calculation with single scroll offset and cached layout bounds
+  const getTimelineTimeFromClientX = useCallback(
+    (clientX: number): number => {
+      if (!tracksScrollRef.current) return 0;
+      const left = cachedContainerLeftRef.current ?? tracksScrollRef.current.getBoundingClientRect().left;
+      const scrollLeft = tracksScrollRef.current.scrollLeft;
+      const clickX = clientX - left + scrollLeft;
+      return Math.max(0, Math.min(maxTimelineTime, clickX / pxPerSec));
+    },
+    [pxPerSec, maxTimelineTime]
+  );
+
   const handleRulerMouseDown = (e: React.MouseEvent) => {
-    if (!rulerRef.current) return;
+    if (tracksScrollRef.current) {
+      cachedContainerLeftRef.current = tracksScrollRef.current.getBoundingClientRect().left;
+    }
     setIsScrubbing(true);
-    const rect = rulerRef.current.getBoundingClientRect();
-    const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
-    const clickX = e.clientX - rect.left + scrollLeft;
-    seekTo(Math.max(0, clickX / pxPerSec));
+    seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
   };
 
   const handleRulerTouchStart = (e: React.TouchEvent) => {
-    if (!rulerRef.current || e.touches.length === 0) return;
+    if (!e.touches.length) return;
+    if (tracksScrollRef.current) {
+      cachedContainerLeftRef.current = tracksScrollRef.current.getBoundingClientRect().left;
+    }
     setIsScrubbing(true);
-    const touch = e.touches[0];
-    const rect = rulerRef.current.getBoundingClientRect();
-    const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
-    const clickX = touch.clientX - rect.left + scrollLeft;
-    seekTo(Math.max(0, clickX / pxPerSec));
+    seekTo(getTimelineTimeFromClientX(e.touches[0].clientX), maxTimelineTime);
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isScrubbing && rulerRef.current) {
-        const rect = rulerRef.current.getBoundingClientRect();
-        const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
-        const clickX = e.clientX - rect.left + scrollLeft;
-        seekTo(Math.max(0, clickX / pxPerSec));
+      if (isScrubbing) {
+        seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
       } else if (draggingClip) {
         const deltaSec = (e.clientX - draggingClip.startX) / pxPerSec;
-        moveClip(draggingClip.type, draggingClip.id, Math.max(0, draggingClip.initialStartTime + deltaSec));
+        moveClip(draggingClip.type, draggingClip.id, Math.max(0, draggingClip.initialStartTime + deltaSec), false);
       } else if (trimmingClip) {
         const deltaSec = (e.clientX - trimmingClip.startX) / pxPerSec;
         if (Math.abs(deltaSec) > 0.05) {
-          trimClip(trimmingClip.type, trimmingClip.id, trimmingClip.edge, deltaSec);
+          trimClip(trimmingClip.type, trimmingClip.id, trimmingClip.edge, deltaSec, false);
           setTrimmingClip((prev) => (prev ? { ...prev, startX: e.clientX } : null));
         }
       }
@@ -257,24 +283,22 @@ export default function Timeline() {
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 0) return;
       const touch = e.touches[0];
-      if (isScrubbing && rulerRef.current) {
-        const rect = rulerRef.current.getBoundingClientRect();
-        const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
-        const clickX = touch.clientX - rect.left + scrollLeft;
-        seekTo(Math.max(0, clickX / pxPerSec));
+      if (isScrubbing) {
+        seekTo(getTimelineTimeFromClientX(touch.clientX), maxTimelineTime);
       } else if (draggingClip) {
         const deltaSec = (touch.clientX - draggingClip.startX) / pxPerSec;
-        moveClip(draggingClip.type, draggingClip.id, Math.max(0, draggingClip.initialStartTime + deltaSec));
+        moveClip(draggingClip.type, draggingClip.id, Math.max(0, draggingClip.initialStartTime + deltaSec), false);
       } else if (trimmingClip) {
         const deltaSec = (touch.clientX - trimmingClip.startX) / pxPerSec;
         if (Math.abs(deltaSec) > 0.05) {
-          trimClip(trimmingClip.type, trimmingClip.id, trimmingClip.edge, deltaSec);
+          trimClip(trimmingClip.type, trimmingClip.id, trimmingClip.edge, deltaSec, false);
           setTrimmingClip((prev) => (prev ? { ...prev, startX: touch.clientX } : null));
         }
       }
     };
 
     const handleDragEnd = () => {
+      cachedContainerLeftRef.current = null;
       setIsScrubbing(false);
       setDraggingClip(null);
       setTrimmingClip(null);
@@ -293,13 +317,37 @@ export default function Timeline() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleDragEnd);
     };
-  }, [isScrubbing, draggingClip, trimmingClip, pxPerSec, seekTo, moveClip, trimClip]);
+  }, [isScrubbing, draggingClip, trimmingClip, pxPerSec, seekTo, moveClip, trimClip, getTimelineTimeFromClientX, maxTimelineTime]);
+
+  // Auto-scroll timeline to keep playhead in view during playback
+  useEffect(() => {
+    if (!isPlaying || !tracksScrollRef.current) return;
+    const container = tracksScrollRef.current;
+    const viewWidth = container.clientWidth;
+    const currentScroll = container.scrollLeft;
+    const currentPlayheadPx = currentTime * pxPerSec;
+
+    // Reset scroll if looped back to start
+    if (currentTime < 0.15 && currentScroll > 50) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Auto-scroll when playhead is within 60px of right edge or beyond
+    if (currentPlayheadPx > currentScroll + viewWidth - 60) {
+      container.scrollLeft = currentPlayheadPx - viewWidth + 120;
+    } else if (currentPlayheadPx < currentScroll) {
+      container.scrollLeft = Math.max(0, currentPlayheadPx - 60);
+    }
+  }, [currentTime, isPlaying, pxPerSec]);
 
   const tickInterval = timelineZoom >= 1.5 ? 1 : timelineZoom < 0.8 ? 5 : 2;
-  const maxTime = Math.max(totalDuration + 8, containerWidth > 0 ? containerWidth / pxPerSec : 24);
-  const numTicks = Math.ceil(maxTime + 2);
-  const ticks = [];
-  for (let s = 0; s <= numTicks; s += tickInterval) ticks.push(s);
+  const ticks = useMemo(() => {
+    const numTicks = Math.ceil(maxTimelineTime + 2);
+    const result: number[] = [];
+    for (let s = 0; s <= numTicks; s += tickInterval) result.push(s);
+    return result;
+  }, [maxTimelineTime, tickInterval]);
 
   const playheadX = currentTime * pxPerSec;
 
@@ -463,7 +511,7 @@ export default function Timeline() {
     >
       {/* Hidden File Inputs for Toolbar Quick Add */}
       <input ref={toolbarImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-      <input ref={toolbarAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
+      <input ref={toolbarAudioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.wma,.aiff" className="hidden" onChange={handleAudioUpload} />
 
       {/* Toolbar - Desktop NLE Ribbon & Mobile Horizontal Scroll */}
       <div
@@ -554,12 +602,13 @@ export default function Timeline() {
             }`}
             title={`Canvas Aspect Ratio: ${aspectRatio}. Click to change`}
           >
+            {aspectRatio === 'original' && <Maximize2 className="w-3 h-3 text-[#8E8E8E]" />}
             {aspectRatio === '16:9' && <Monitor className="w-3 h-3 text-[#8E8E8E]" />}
             {aspectRatio === '9:16' && <Smartphone className="w-3 h-3 text-[#8E8E8E]" />}
             {aspectRatio === '1:1' && <Square className="w-3 h-3 text-[#8E8E8E]" />}
             {aspectRatio === '4:5' && <SplitSquareVertical className="w-3 h-3 text-[#8E8E8E]" />}
             {aspectRatio === '21:9' && <Maximize2 className="w-3 h-3 text-[#8E8E8E]" />}
-            <span className="font-semibold text-white">{aspectRatio}</span>
+            <span className="font-semibold text-white">{aspectRatio === 'original' ? 'Auto' : aspectRatio}</span>
             <span className="text-[10px] text-[#7E7E8E] hidden sm:inline">Ratio</span>
             <ChevronDown className="w-2.5 h-2.5 text-[#686868]" />
           </button>
@@ -828,9 +877,25 @@ export default function Timeline() {
           </div>
 
           {/* Track Lanes */}
-          <div style={{ width: `${timelineContentWidth}px`, minWidth: '100%' }} className="flex-1 relative flex flex-col min-w-full" onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }}>
+          <div
+            style={{ width: `${timelineContentWidth}px`, minWidth: '100%' }}
+            className="flex-1 relative flex flex-col min-w-full"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedItem(null);
+                seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
+              }
+            }}
+          >
             {/* Signature Studio Reference White Playhead */}
-            <div style={{ left: `${playheadX}px` }} className="absolute top-0 bottom-0 w-px bg-white z-30 pointer-events-none shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+            <div
+              style={{
+                left: 0,
+                transform: `translate3d(${playheadX}px, 0, 0)`,
+                willChange: 'transform',
+              }}
+              className="absolute top-0 bottom-0 w-px bg-white z-30 pointer-events-none shadow-[0_0_8px_rgba(255,255,255,0.4)]"
+            >
               <div
                 style={{
                   clipPath: 'polygon(0% 0%, 100% 0%, 100% 60%, 50% 100%, 0% 60%)',
@@ -849,7 +914,15 @@ export default function Timeline() {
             ))}
 
             {/* Track 1: Text (T1) */}
-            <div onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }} className="h-7 shrink-0 border-b border-[#242424] relative bg-[#18161c] cursor-pointer">
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedItem(null);
+                  seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
+                }
+              }}
+              className="h-7 shrink-0 border-b border-[#242424] relative bg-[#18161c] cursor-pointer"
+            >
               {textClips.map((clip) => (
                 <TimelineClipBlock
                   key={clip.id}
@@ -862,24 +935,28 @@ export default function Timeline() {
                   borderClass="border border-[#685475]"
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'text', id: clip.id });
                     setDraggingClip({ type: 'text', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
                   onTouchStart={(e) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'text', id: clip.id });
                       setDraggingClip({ type: 'text', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
                     }
                   }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'text', id: clip.id });
                     setTrimmingClip({ type: 'text', id: clip.id, edge, startX: e.clientX });
                   }}
                   onTrimTouchStart={(e, edge) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'text', id: clip.id });
                       setTrimmingClip({ type: 'text', id: clip.id, edge, startX: e.touches[0].clientX });
                     }
@@ -896,7 +973,15 @@ export default function Timeline() {
             </div>
 
             {/* Track 2: Images / Graphics (V2) */}
-            <div onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }} className="h-14 shrink-0 border-b border-[#242424] relative bg-[#1c1815] cursor-pointer">
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedItem(null);
+                  seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
+                }
+              }}
+              className="h-14 shrink-0 border-b border-[#242424] relative bg-[#1c1815] cursor-pointer"
+            >
               {imageClips.map((clip) => (
                 <TimelineClipBlock
                   key={clip.id}
@@ -908,24 +993,28 @@ export default function Timeline() {
                   borderClass="border border-[#7d5738]"
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'image', id: clip.id });
                     setDraggingClip({ type: 'image', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
                   onTouchStart={(e) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'image', id: clip.id });
                       setDraggingClip({ type: 'image', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
                     }
                   }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'image', id: clip.id });
                     setTrimmingClip({ type: 'image', id: clip.id, edge, startX: e.clientX });
                   }}
                   onTrimTouchStart={(e, edge) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'image', id: clip.id });
                       setTrimmingClip({ type: 'image', id: clip.id, edge, startX: e.touches[0].clientX });
                     }
@@ -942,7 +1031,15 @@ export default function Timeline() {
             </div>
 
             {/* Track 3: Video (V1) */}
-            <div onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }} className="h-14 shrink-0 border-b border-[#242424] relative bg-[#161718] cursor-pointer">
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedItem(null);
+                  seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
+                }
+              }}
+              className="h-14 shrink-0 border-b border-[#242424] relative bg-[#161718] cursor-pointer"
+            >
               {videoClips.map((clip) => (
                 <TimelineClipBlock
                   key={clip.id}
@@ -954,24 +1051,28 @@ export default function Timeline() {
                   borderClass="border border-[#3e4854]"
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'video', id: clip.id });
                     setDraggingClip({ type: 'video', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
                   onTouchStart={(e) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'video', id: clip.id });
                       setDraggingClip({ type: 'video', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
                     }
                   }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'video', id: clip.id });
                     setTrimmingClip({ type: 'video', id: clip.id, edge, startX: e.clientX });
                   }}
                   onTrimTouchStart={(e, edge) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'video', id: clip.id });
                       setTrimmingClip({ type: 'video', id: clip.id, edge, startX: e.touches[0].clientX });
                     }
@@ -996,7 +1097,10 @@ export default function Timeline() {
             {hasVideoAudioTrack && (
               <div
                 onClick={(e) => {
-                  if (e.target === e.currentTarget) setSelectedItem(null);
+                  if (e.target === e.currentTarget) {
+                    setSelectedItem(null);
+                    seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
+                  }
                 }}
                 className="h-7 shrink-0 border-b border-[#242424] relative bg-[#161817] cursor-pointer"
               >
@@ -1012,6 +1116,7 @@ export default function Timeline() {
                     borderClass="border border-[#2a4d44]"
                     onMouseDown={(e) => {
                       e.stopPropagation();
+                      saveSnapshot();
                       setSelectedItem({ type: 'audio', id: clip.id });
                       setDraggingClip({
                         type: 'audio',
@@ -1023,6 +1128,7 @@ export default function Timeline() {
                     onTouchStart={(e) => {
                       e.stopPropagation();
                       if (e.touches.length > 0) {
+                        saveSnapshot();
                         setSelectedItem({ type: 'audio', id: clip.id });
                         setDraggingClip({
                           type: 'audio',
@@ -1034,12 +1140,14 @@ export default function Timeline() {
                     }}
                     onTrimMouseDown={(e, edge) => {
                       e.stopPropagation();
+                      saveSnapshot();
                       setSelectedItem({ type: 'audio', id: clip.id });
                       setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.clientX });
                     }}
                     onTrimTouchStart={(e, edge) => {
                       e.stopPropagation();
                       if (e.touches.length > 0) {
+                        saveSnapshot();
                         setSelectedItem({ type: 'audio', id: clip.id });
                         setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.touches[0].clientX });
                       }
@@ -1062,7 +1170,15 @@ export default function Timeline() {
             )}
 
             {/* Track 4: Audio / Music (A2) */}
-            <div onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }} className="h-7 shrink-0 border-b border-[#242424] relative bg-[#141d18] cursor-pointer">
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedItem(null);
+                  seekTo(getTimelineTimeFromClientX(e.clientX), maxTimelineTime);
+                }
+              }}
+              className="h-7 shrink-0 border-b border-[#242424] relative bg-[#141d18] cursor-pointer"
+            >
               {musicAudioClips.map((clip) => (
                 <TimelineClipBlock
                   key={clip.id}
@@ -1075,24 +1191,28 @@ export default function Timeline() {
                   borderClass="border border-[#2e6958]"
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'audio', id: clip.id });
                     setDraggingClip({ type: 'audio', id: clip.id, startX: e.clientX, initialStartTime: clip.startTime });
                   }}
                   onTouchStart={(e) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'audio', id: clip.id });
                       setDraggingClip({ type: 'audio', id: clip.id, startX: e.touches[0].clientX, initialStartTime: clip.startTime });
                     }
                   }}
                   onTrimMouseDown={(e, edge) => {
                     e.stopPropagation();
+                    saveSnapshot();
                     setSelectedItem({ type: 'audio', id: clip.id });
                     setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.clientX });
                   }}
                   onTrimTouchStart={(e, edge) => {
                     e.stopPropagation();
                     if (e.touches.length > 0) {
+                      saveSnapshot();
                       setSelectedItem({ type: 'audio', id: clip.id });
                       setTrimmingClip({ type: 'audio', id: clip.id, edge, startX: e.touches[0].clientX });
                     }
@@ -1318,6 +1438,14 @@ export default function Timeline() {
 
                 <div className="space-y-1.5 pb-6 sm:pb-0">
                   {[
+                    {
+                      ratio: 'original' as const,
+                      label: 'Auto (Original)',
+                      title: 'Match Video Frame',
+                      desc: 'Automatic native video dimensions',
+                      shapeW: 'w-5',
+                      shapeH: 'h-4',
+                    },
                     {
                       ratio: '16:9' as const,
                       label: '16:9',

@@ -22,6 +22,7 @@ import { useEditor } from '../context/EditorContext';
 import { AspectRatio } from '../types/editor';
 
 const ASPECT_RATIOS: { label: string; ratio: AspectRatio; icon: React.ReactNode; desc: string }[] = [
+  { label: 'Auto (Original)', ratio: 'original', icon: <Maximize2 className="w-3.5 h-3.5" />, desc: 'Match Video Frame' },
   { label: '16:9', ratio: '16:9', icon: <Monitor className="w-3.5 h-3.5" />, desc: 'YouTube / Widescreen' },
   { label: '9:16', ratio: '9:16', icon: <Smartphone className="w-3.5 h-3.5" />, desc: 'TikTok / Reels / Shorts' },
   { label: '1:1', ratio: '1:1', icon: <Square className="w-3.5 h-3.5" />, desc: 'Square Post' },

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   AspectRatio,
   ThemeId,
@@ -38,6 +38,7 @@ interface EditorContextType {
   projectTitle: string;
   selectedItem: SelectedItem;
   totalDuration: number;
+  exportDuration: number;
   timelineZoom: number;
   canUndo: boolean;
   canRedo: boolean;
@@ -56,7 +57,7 @@ interface EditorContextType {
   setAspectRatio: (ratio: AspectRatio) => void;
   setTimelineZoom: (zoom: number | ((prev: number) => number)) => void;
   setSelectedItem: (item: SelectedItem) => void;
-  seekTo: (time: number) => void;
+  seekTo: (time: number, maxLimit?: number) => void;
   togglePlay: () => void;
   play: () => void;
   pause: () => void;
@@ -76,12 +77,13 @@ interface EditorContextType {
   extractAudioFromVideo: (videoClipId?: string) => void;
   updateVideoSpeed: (id: string, speed: number) => void;
   updateAudioSpeed: (id: string, speed: number) => void;
-  moveClip: (type: 'video' | 'image' | 'text' | 'audio', id: string, newStartTime: number) => void;
+  moveClip: (type: 'video' | 'image' | 'text' | 'audio', id: string, newStartTime: number, saveHistory?: boolean) => void;
   trimClip: (
     type: 'video' | 'image' | 'text' | 'audio',
     id: string,
     edge: 'start' | 'end',
-    deltaSeconds: number
+    deltaSeconds: number,
+    saveHistory?: boolean
   ) => void;
 
   // History & Projects
@@ -116,7 +118,7 @@ function cloneClipsForSnapshot(
 
 export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [projectTitle, setProjectTitle] = useState('Zeesu Royalist Project');
-  const [aspectRatio, setAspectRatioState] = useState<AspectRatio>('16:9');
+  const [aspectRatio, setAspectRatioState] = useState<AspectRatio>('original');
   const [theme, setThemeState] = useState<ThemeId>('obsidian');
   const [timelineZoom, setTimelineZoom] = useState(1);
   const [currentTime, setCurrentTimeState] = useState(0);
@@ -154,13 +156,32 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setRedoStack([]);
   }, [videoClips, imageClips, audioClips, textClips, aspectRatio]);
 
-  const totalDuration = Math.max(
-    5,
-    ...videoClips.map((c) => c.startTime + c.duration),
-    ...imageClips.map((c) => c.startTime + c.duration),
-    ...audioClips.map((c) => c.startTime + c.duration),
-    ...textClips.map((c) => c.startTime + c.duration)
-  );
+  const { totalDuration, exportDuration } = useMemo(() => {
+    let maxVisual = 0;
+    for (let i = 0; i < videoClips.length; i++) {
+      const end = videoClips[i].startTime + videoClips[i].duration;
+      if (end > maxVisual) maxVisual = end;
+    }
+    for (let i = 0; i < imageClips.length; i++) {
+      const end = imageClips[i].startTime + imageClips[i].duration;
+      if (end > maxVisual) maxVisual = end;
+    }
+
+    let maxAny = maxVisual;
+    for (let i = 0; i < audioClips.length; i++) {
+      const end = audioClips[i].startTime + audioClips[i].duration;
+      if (end > maxAny) maxAny = end;
+    }
+    for (let i = 0; i < textClips.length; i++) {
+      const end = textClips[i].startTime + textClips[i].duration;
+      if (end > maxAny) maxAny = end;
+    }
+
+    return {
+      totalDuration: Math.max(5, maxAny),
+      exportDuration: maxVisual > 0 ? maxVisual : Math.max(0.5, maxAny, 5),
+    };
+  }, [videoClips, imageClips, audioClips, textClips]);
 
   const activeVideoClip =
     videoClips.find((c) => currentTime >= c.startTime && currentTime < c.startTime + c.duration) || null;
@@ -178,8 +199,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   );
 
   const seekTo = useCallback(
-    (time: number) => {
-      setCurrentTimeState(Math.max(0, Math.min(totalDuration, time)));
+    (time: number, maxLimit?: number) => {
+      // Allow seeking anywhere from 0 to either totalDuration + buffer or ruler maxLimit
+      const maxSeekable = maxLimit ?? Math.max(totalDuration + 30, 60);
+      setCurrentTimeState(Math.max(0, Math.min(maxSeekable, time)));
     },
     [totalDuration]
   );
@@ -217,9 +240,23 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isPlaying, totalDuration]);
 
-  const play = useCallback(() => setIsPlaying(true), []);
+  const play = useCallback(() => {
+    if (currentTime >= totalDuration - 0.05) {
+      setCurrentTimeState(0);
+    }
+    setIsPlaying(true);
+  }, [currentTime, totalDuration]);
+
   const pause = useCallback(() => setIsPlaying(false), []);
-  const togglePlay = useCallback(() => setIsPlaying((p) => !p), []);
+
+  const togglePlay = useCallback(() => {
+    setIsPlaying((p) => {
+      if (!p && currentTime >= totalDuration - 0.05) {
+        setCurrentTimeState(0);
+      }
+      return !p;
+    });
+  }, [currentTime, totalDuration]);
 
   const setTheme = useCallback((newTheme: ThemeId) => {
     setThemeState(newTheme);
@@ -274,7 +311,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       setAudioClips([]);
       setTextClips([]);
       setProjectTitle('Zeesu Royalist Project');
-      setAspectRatioState('16:9');
+      setAspectRatioState('original');
       setCurrentTimeState(0);
       setSelectedItem(null);
       setUndoStack([]);
@@ -362,6 +399,148 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [videoClips.length, imageClips.length, audioClips.length, textClips.length]);
 
+  /**
+   * Accurately extracts duration for an audio file/blob.
+   * Uses Web Audio API decodeAudioData first for 100% sample-accurate duration (works with MP3, WAV, AAC, M4A, OGG),
+   * with resilient HTMLAudioElement fallback and Chromium Infinity bypass.
+   */
+  const extractAudioDuration = async (source: File | string, blobUrl: string): Promise<number> => {
+    // Strategy 1: Web Audio API (decodeAudioData) - fast & accurate to microseconds
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtxClass) {
+        let arrayBuffer: ArrayBuffer;
+        if (typeof source === 'string') {
+          const res = await fetch(source);
+          arrayBuffer = await res.arrayBuffer();
+        } else {
+          arrayBuffer = await source.arrayBuffer();
+        }
+
+        const audioCtx = new AudioCtxClass();
+        try {
+          const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+            audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+          });
+          if (audioBuffer && isFinite(audioBuffer.duration) && audioBuffer.duration > 0) {
+            return audioBuffer.duration;
+          }
+        } finally {
+          if (audioCtx.state !== 'closed') {
+            audioCtx.close().catch(() => {});
+          }
+        }
+      }
+    } catch {
+      // Fallback to HTMLAudioElement if decodeAudioData throws
+    }
+
+    // Strategy 2: HTMLAudioElement with metadata listeners & Chromium Infinity bug handling
+    return new Promise<number>((resolve) => {
+      const aud = new Audio();
+      aud.preload = 'metadata';
+      aud.src = blobUrl;
+
+      let finished = false;
+      const finish = (finalDur: number) => {
+        if (finished) return;
+        finished = true;
+        aud.onloadedmetadata = null;
+        aud.ondurationchange = null;
+        aud.onerror = null;
+        aud.ontimeupdate = null;
+        aud.src = '';
+        resolve(isFinite(finalDur) && finalDur > 0 ? finalDur : 10);
+      };
+
+      const timeout = setTimeout(() => {
+        finish(aud.duration);
+      }, 4000);
+
+      const onMetadata = () => {
+        if (isFinite(aud.duration) && aud.duration > 0) {
+          clearTimeout(timeout);
+          finish(aud.duration);
+        } else if (aud.duration === Infinity) {
+          // Chromium VBR bug: seeking to end forces browser to calculate exact duration
+          aud.currentTime = 1e10;
+          aud.ontimeupdate = () => {
+            aud.ontimeupdate = null;
+            aud.currentTime = 0;
+            clearTimeout(timeout);
+            finish(aud.duration);
+          };
+        }
+      };
+
+      aud.onloadedmetadata = onMetadata;
+      aud.ondurationchange = onMetadata;
+      aud.onerror = () => {
+        clearTimeout(timeout);
+        finish(10);
+      };
+      aud.load();
+    });
+  };
+
+  /**
+   * Accurately extracts duration and native pixel dimensions for a video file/blob.
+   */
+  const extractVideoMetadata = async (
+    blobUrl: string
+  ): Promise<{ duration: number; width: number; height: number }> => {
+    return new Promise<{ duration: number; width: number; height: number }>((resolve) => {
+      const vid = document.createElement('video');
+      vid.preload = 'metadata';
+      vid.src = blobUrl;
+
+      let finished = false;
+      const finish = (finalDur: number, w: number, h: number) => {
+        if (finished) return;
+        finished = true;
+        vid.onloadedmetadata = null;
+        vid.ondurationchange = null;
+        vid.onerror = null;
+        vid.ontimeupdate = null;
+        vid.src = '';
+        resolve({
+          duration: isFinite(finalDur) && finalDur > 0 ? finalDur : 5,
+          width: w > 0 ? w : 1280,
+          height: h > 0 ? h : 720,
+        });
+      };
+
+      const timeout = setTimeout(() => {
+        finish(vid.duration, vid.videoWidth, vid.videoHeight);
+      }, 4000);
+
+      const onMetadata = () => {
+        const w = vid.videoWidth || 1280;
+        const h = vid.videoHeight || 720;
+        if (isFinite(vid.duration) && vid.duration > 0) {
+          clearTimeout(timeout);
+          finish(vid.duration, w, h);
+        } else if (vid.duration === Infinity) {
+          vid.currentTime = 1e10;
+          vid.ontimeupdate = () => {
+            vid.ontimeupdate = null;
+            vid.currentTime = 0;
+            clearTimeout(timeout);
+            finish(vid.duration, vid.videoWidth || w, vid.videoHeight || h);
+          };
+        }
+      };
+
+      vid.onloadedmetadata = onMetadata;
+      vid.ondurationchange = onMetadata;
+      vid.onerror = () => {
+        clearTimeout(timeout);
+        finish(5, 1280, 720);
+      };
+      vid.load();
+    });
+  };
+
   // Video Clips
   const addVideoClip = async (source: File | string, name?: string, knownDuration?: number) => {
     saveSnapshot();
@@ -376,22 +555,12 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     } else {
       url = URL.createObjectURL(source);
       clipName = source.name;
-      await saveMediaBlob(mediaId, source, clipName, source.type || 'video/mp4');
+      saveMediaBlob(mediaId, source, clipName, source.type || 'video/mp4').catch(() => {});
     }
 
-    let dur = knownDuration || 5;
-    if (!knownDuration) {
-      try {
-        const vid = document.createElement('video');
-        vid.src = url;
-        await new Promise<void>((res) => {
-          vid.onloadedmetadata = () => { dur = vid.duration && !isNaN(vid.duration) ? vid.duration : 5; res(); };
-          vid.onerror = () => res();
-        });
-      } catch {
-        dur = 5;
-      }
-    }
+    const meta = await extractVideoMetadata(url);
+    const dur = knownDuration || meta.duration;
+    const isFirstVideo = videoClips.length === 0;
 
     const lastVideoEnd = videoClips.reduce((max, c) => Math.max(max, c.startTime + c.duration), 0);
     const newClip: VideoClip = {
@@ -400,6 +569,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       url,
       mediaId,
       sourceDuration: dur,
+      width: meta.width,
+      height: meta.height,
       startTime: lastVideoEnd,
       duration: dur,
       offsetStart: 0,
@@ -411,6 +582,11 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
 
     setVideoClips((prev) => [...prev, newClip]);
     setSelectedItem({ type: 'video', id: newClip.id });
+
+    // When the first video is added, automatically adapt canvas frame aspect ratio
+    if (isFirstVideo) {
+      setAspectRatioState('original');
+    }
   };
 
   const updateVideoClip = (id: string, updates: Partial<VideoClip>) => {
@@ -432,22 +608,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     } else {
       url = URL.createObjectURL(source);
       audioName = source.name;
-      await saveMediaBlob(mediaId, source, audioName, source.type || 'audio/mp3');
+      saveMediaBlob(mediaId, source, audioName, source.type || 'audio/mp3').catch(() => {});
     }
 
-    let dur = knownDuration || 8;
-    if (!knownDuration) {
-      try {
-        const aud = document.createElement('audio');
-        aud.src = url;
-        await new Promise<void>((res) => {
-          aud.onloadedmetadata = () => { dur = aud.duration && !isNaN(aud.duration) ? dur : 8; res(); };
-          aud.onerror = () => res();
-        });
-      } catch {
-        dur = 8;
-      }
-    }
+    const dur = knownDuration || (await extractAudioDuration(source, url));
 
     const lastAudioEnd = audioClips.reduce((max, c) => Math.max(max, c.startTime + c.duration), 0);
     const newClip: AudioClip = {
@@ -569,8 +733,13 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     else if (videoClips.length > 0) deleteClip('video', videoClips[videoClips.length - 1].id);
   };
 
-  const moveClip = (type: 'video' | 'image' | 'text' | 'audio', id: string, newStartTime: number) => {
-    saveSnapshot();
+  const moveClip = (
+    type: 'video' | 'image' | 'text' | 'audio',
+    id: string,
+    newStartTime: number,
+    saveHistory = true
+  ) => {
+    if (saveHistory) saveSnapshot();
     const safeStart = Math.max(0, newStartTime);
     const setters: Record<string, React.Dispatch<React.SetStateAction<any[]>>> = {
       video: setVideoClips,
@@ -585,9 +754,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     type: 'video' | 'image' | 'text' | 'audio',
     id: string,
     edge: 'start' | 'end',
-    deltaSeconds: number
+    deltaSeconds: number,
+    saveHistory = true
   ) => {
-    saveSnapshot();
+    if (saveHistory) saveSnapshot();
     const minDur = 0.5;
 
     if (type === 'video' || type === 'audio') {
@@ -907,7 +1077,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
         audioClips,
         textClips,
         aspectRatio,
-        totalDuration,
+        totalDuration: exportDuration,
         format,
         onProgress: (p) => setExportProgress(p),
       });
@@ -982,6 +1152,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
         projectTitle,
         selectedItem,
         totalDuration,
+        exportDuration,
         timelineZoom,
         canUndo: undoStack.length > 0,
         canRedo: redoStack.length > 0,

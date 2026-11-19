@@ -22,6 +22,7 @@ export default function ExportModal() {
     exportedVideo,
     aspectRatio,
     totalDuration,
+    exportDuration,
     videoClips,
     audioClips,
     textClips,
@@ -31,7 +32,7 @@ export default function ExportModal() {
 
   if (!isExportModalOpen) return null;
 
-  const resolution = getResolutionForAspectRatio(aspectRatio);
+  const resolution = getResolutionForAspectRatio(aspectRatio, videoClips[0]);
   const isExporting =
     exportProgress !== null &&
     exportProgress.progress < 100 &&
@@ -196,7 +197,7 @@ export default function ExportModal() {
                     Dimensions
                   </span>
                   <span className="font-medium text-[#E6E6E6] text-xs">
-                    {resolution.width} × {resolution.height} ({aspectRatio})
+                    {resolution.width} × {resolution.height} ({aspectRatio === 'original' ? 'Original' : aspectRatio})
                   </span>
                 </div>
                 <div className="p-2 rounded-[2px] bg-[#202020] border border-[#303030]">
@@ -204,7 +205,7 @@ export default function ExportModal() {
                     Duration
                   </span>
                   <span className="font-mono text-[#E6E6E6] text-xs">
-                    {totalDuration.toFixed(2)} seconds
+                    {exportDuration.toFixed(2)} seconds
                   </span>
                 </div>
                 <div className="p-2 rounded-[2px] bg-[#202020] border border-[#303030]">
@@ -224,6 +225,15 @@ export default function ExportModal() {
                   </span>
                 </div>
               </div>
+
+              {totalDuration > exportDuration + 0.1 && (
+                <div className="p-2 rounded-[2px] bg-[#16211a] border border-[#234e37] text-xs text-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                  <span className="text-[10px] leading-relaxed">
+                    Audio auto-trimmed at video end ({exportDuration.toFixed(1)}s). Extra trailing audio won&apos;t be downloaded.
+                  </span>
+                </div>
+              )}
 
               <div className="p-2 rounded-[2px] bg-[#202020] border border-[#303030] text-xs text-[#777777] flex items-start gap-1.5">
                 <p className="text-[10px] leading-relaxed text-[#A0A0A0]">

@@ -148,9 +148,20 @@ export default function LeftPanel({
     if (!files || files.length === 0) return;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type.startsWith('video/')) await addVideoClip(file);
-      else if (file.type.startsWith('audio/')) await addAudioClip(file);
-      else if (file.type.startsWith('image/')) await addImageClip(file);
+      const isAudio =
+        file.type.startsWith('audio/') ||
+        /\.(mp3|wav|ogg|m4a|aac|flac|wma|aiff|alac|opus)$/i.test(file.name);
+      const isVideo =
+        !isAudio &&
+        (file.type.startsWith('video/') ||
+          /\.(mp4|webm|mov|mkv|avi|m4v|3gp)$/i.test(file.name));
+      const isImage =
+        file.type.startsWith('image/') ||
+        /\.(png|jpe?g|webp|gif|svg|bmp|ico)$/i.test(file.name);
+
+      if (isVideo) await addVideoClip(file);
+      else if (isAudio) await addAudioClip(file);
+      else if (isImage) await addImageClip(file);
     }
   };
 
@@ -259,7 +270,7 @@ export default function LeftPanel({
                 : 'border-[#383842] hover:border-[#666672] bg-[#18181C]'
                 }`}
             >
-              <input ref={fileInputRef} type="file" multiple accept="video/*,audio/*,image/*" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+              <input ref={fileInputRef} type="file" multiple accept="video/*,audio/*,image/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.webm,.mov" className="hidden" onChange={(e) => { handleFileUpload(e.target.files); e.target.value = ''; }} />
               <div className="w-7 h-7 rounded-[2px] bg-[#232323] border border-[#333333] flex items-center justify-center mx-auto mb-1.5 text-[#8E8E8E]">
                 <UploadCloud className="w-3.5 h-3.5" />
               </div>
@@ -309,7 +320,7 @@ export default function LeftPanel({
               className={`border border-dashed rounded-[2px] p-4 text-center cursor-pointer transition ${isDraggingOver ? 'border-[#FFFFFF] bg-[#222228]' : 'border-[#383842] hover:border-[#666672] bg-[#18181C]'
                 }`}
             >
-              <input ref={imageInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+              <input ref={imageInputRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => { handleFileUpload(e.target.files); e.target.value = ''; }} />
               <div className="w-7 h-7 rounded-[2px] bg-[#232323] border border-[#333333] flex items-center justify-center mx-auto mb-1.5 text-[#8E8E8E]">
                 <ImageIcon className="w-3.5 h-3.5" />
               </div>
@@ -402,7 +413,7 @@ export default function LeftPanel({
               <UploadCloud className="w-3.5 h-3.5 text-[#8E8E8E]" />
               <span>Import Audio File</span>
             </button>
-            <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+            <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.wma,.aiff" className="hidden" onChange={(e) => { handleFileUpload(e.target.files); e.target.value = ''; }} />
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
