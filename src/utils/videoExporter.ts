@@ -576,8 +576,8 @@ export async function exportEditedVideo({
       const now = performance.now();
 
       // Sequence timeline calculation
-      let elapsed = (now - startWallTime) / 1000;
-      let t = Math.min(safeDuration, elapsed);
+      const elapsed = (now - startWallTime) / 1000;
+      const t = Math.min(safeDuration, elapsed);
 
       // A. Locate active video track
       const activeVideoTrack = videoTracks.find(

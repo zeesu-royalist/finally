@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Film,
-  Sparkles,
   RotateCw,
 } from 'lucide-react';
 import { useEditor } from '../context/EditorContext';
