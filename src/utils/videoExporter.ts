@@ -245,22 +245,19 @@ export async function exportEditedVideo({
 
   let isStopped = false;
 
-  // 1. Create a visible compositor export container
-  // Must be in viewport, size >= 30x30, and opacity >= 0.05 so Chromium/macOS CoreAnimation
-  // grants 100% top-priority hardware video decoding without background throttling or freezing.
+  // 1. Create a hidden background DOM export container
+  // Keeps media elements mounted for audio routing and decoding while staying 100% invisible to the user
   const exportContainer = document.createElement('div');
   exportContainer.setAttribute('data-export-container', 'true');
   exportContainer.style.position = 'fixed';
-  exportContainer.style.bottom = '8px';
-  exportContainer.style.right = '8px';
-  exportContainer.style.width = '320px';
-  exportContainer.style.height = '180px';
-  exportContainer.style.opacity = '0.99';
+  exportContainer.style.top = '0';
+  exportContainer.style.left = '0';
+  exportContainer.style.width = '1px';
+  exportContainer.style.height = '1px';
+  exportContainer.style.opacity = '0';
   exportContainer.style.pointerEvents = 'none';
-  exportContainer.style.zIndex = '40'; // Sits directly beneath ExportModal (z-50) inside the active viewport
+  exportContainer.style.zIndex = '-9999';
   exportContainer.style.overflow = 'hidden';
-  exportContainer.style.borderRadius = '4px';
-  exportContainer.style.backgroundColor = '#000000';
   document.body.appendChild(exportContainer);
 
   // 2. Setup Web Audio graph with hardware clock pump anchor
